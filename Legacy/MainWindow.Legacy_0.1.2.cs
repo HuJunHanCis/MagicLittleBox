@@ -1,3 +1,8 @@
+// Legacy backup of MainWindow code as of v0.1.2. This file keeps the
+// previous implementation commented out so future refactors of
+// MainWindow can reference historical logic without pulling older
+// branches.
+//
 // using System;
 // using System.Collections.Concurrent;
 // using System.Collections.Generic;
