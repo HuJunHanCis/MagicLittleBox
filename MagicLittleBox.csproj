@@ -133,7 +133,10 @@
             <Generator>MSBuild:Compile</Generator>
             <SubType>Designer</SubType>
         </ApplicationDefinition>
-        <Compile Include="backup-最成功.cs">
+        <Compile Include="backup-20251121最成功.cs">
+          <DependentUpon>MainWindow.xaml</DependentUpon>
+        </Compile>
+        <Compile Include="backup-20251124最新版.cs">
           <DependentUpon>MainWindow.xaml</DependentUpon>
         </Compile>
         <Compile Include="backup.cs">

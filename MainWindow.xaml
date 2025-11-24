@@ -217,7 +217,7 @@
                                     Height="20" Width="20"
                                     Margin="0"
                                     VerticalAlignment="Center"
-                            Click="Tem">
+                            >
                                 <svgc:SvgViewbox Source="IconStop.svg" 
                                                  Width="13" 
                                                  Height="13"
@@ -312,7 +312,7 @@
                         Style="{StaticResource QidongButton}"
                         Margin="1 5 3 5"
                         x:Name="EgmStartButton"
-                        Click="EgmStart">
+                        >
                     <TextBlock Text="EGM启动" 
                                HorizontalAlignment="Center" 
                                VerticalAlignment="Center"
@@ -326,7 +326,7 @@
                         Style="{StaticResource EmergencyStopButton}"
                         Margin="3 5 1 5"
                         x:Name="EgmStopButton"
-                        Click="EgmStop">
+                        >
                     <TextBlock Text="停止收发" 
                                HorizontalAlignment="Center" 
                                VerticalAlignment="Center"
@@ -424,7 +424,7 @@
                                 Width="45" Height="25"
                                 Margin="3 0 2 0"
                                 VerticalAlignment="Center"
-                                Click="RobRestart">
+                                >
                             <StackPanel Orientation="Horizontal" 
                                         HorizontalAlignment="Center" 
                                         VerticalAlignment="Center">
