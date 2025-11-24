@@ -139,7 +139,7 @@
         <Compile Include="backup-20251124最新版.cs">
           <DependentUpon>MainWindow.xaml</DependentUpon>
         </Compile>
-        <Compile Include="backup.cs">
+        <Compile Include="Legacy\MainWindow.Legacy_0.1.2.cs">
           <DependentUpon>MainWindow.xaml</DependentUpon>
         </Compile>
         <Compile Include="Sup-03VirtualRobot.cs" />
