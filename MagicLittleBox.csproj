@@ -156,6 +156,14 @@
             <SubType>Code</SubType>
         </Compile>
         <Compile Include="Egm.cs" />
+        <Compile Include="MainWindow.Udp.cs">
+          <DependentUpon>MainWindow.xaml</DependentUpon>
+          <SubType>Code</SubType>
+        </Compile>
+        <Compile Include="MainWindow.Validation.cs">
+          <DependentUpon>MainWindow.xaml</DependentUpon>
+          <SubType>Code</SubType>
+        </Compile>
         <Compile Include="MainWindow.xaml.cs">
             <DependentUpon>MainWindow.xaml</DependentUpon>
             <SubType>Code</SubType>
