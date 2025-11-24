@@ -1,0 +1,15 @@
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\bin\Debug\RobotHelper.dll
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\bin\Debug\RobotHelper.pdb
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\bin\Debug\ABB.Robotics.Controllers.PC.dll
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\bin\Debug\MathNet.Numerics.dll
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\bin\Debug\OtherHelper.dll
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\bin\Debug\RobotStudio.Services.RobApi.Desktop.dll
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\bin\Debug\RobotStudio.Services.RobApi.dll
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\bin\Debug\OtherHelper.pdb
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\bin\Debug\ABB.Robotics.Controllers.PC.xml
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\bin\Debug\MathNet.Numerics.xml
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\obj\Debug\RobotHelper.csproj.AssemblyReference.cache
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\obj\Debug\RobotHelper.csproj.CoreCompileInputs.cache
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\obj\Debug\RobotHel.D37877CE.Up2Date
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\obj\Debug\RobotHelper.dll
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\RobotHelper\obj\Debug\RobotHelper.pdb

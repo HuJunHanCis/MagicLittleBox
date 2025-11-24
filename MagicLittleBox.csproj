@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props"
+            Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')"/>
+    <PropertyGroup>
+        <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+        <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+        <ProjectGuid>{1317DCA5-DCCB-4555-8BFA-252A69CED25A}</ProjectGuid>
+        <OutputType>WinExe</OutputType>
+        <RootNamespace>MagicLittleBox</RootNamespace>
+        <AssemblyName>MagicLittleBox</AssemblyName>
+        <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+        <FileAlignment>512</FileAlignment>
+        <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+        <WarningLevel>4</WarningLevel>
+        <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <DebugSymbols>true</DebugSymbols>
+        <DebugType>full</DebugType>
+        <Optimize>false</Optimize>
+        <OutputPath>bin\Debug\</OutputPath>
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+        <PlatformTarget>AnyCPU</PlatformTarget>
+        <DebugType>pdbonly</DebugType>
+        <Optimize>true</Optimize>
+        <OutputPath>bin\Release\</OutputPath>
+        <DefineConstants>TRACE</DefineConstants>
+        <ErrorReport>prompt</ErrorReport>
+        <WarningLevel>4</WarningLevel>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug Copy|x64' ">
+      <DebugSymbols>true</DebugSymbols>
+      <DebugType>full</DebugType>
+      <Optimize>false</Optimize>
+      <DefineConstants>DEBUG;TRACE</DefineConstants>
+      <ErrorReport>prompt</ErrorReport>
+      <WarningLevel>4</WarningLevel>
+      <OutputPath>bin\x64\Debug Copy\</OutputPath>
+      <PlatformTarget>x64</PlatformTarget>
+    </PropertyGroup>
+    <ItemGroup>
+        <Reference Include="ABB.Robotics.Controllers.PC">
+          <HintPath>..\..\MagicTool\A00-Library\ABB.Robotics.Controllers.PC.dll</HintPath>
+        </Reference>
+        <Reference Include="Google.Protobuf, Version=3.33.0.0, Culture=neutral, PublicKeyToken=a7d26565bac4d604, processorArchitecture=MSIL">
+          <HintPath>packages\Google.Protobuf.3.33.0\lib\net45\Google.Protobuf.dll</HintPath>
+        </Reference>
+        <Reference Include="Microsoft.CSharp" />
+        <Reference Include="mscorlib" />
+        <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+          <HintPath>packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+        </Reference>
+        <Reference Include="RobotStudio.Services.RobApi">
+          <HintPath>..\..\MagicTool\A00-Library\RobotStudio.Services.RobApi.dll</HintPath>
+        </Reference>
+        <Reference Include="RobotStudio.Services.RobApi.Desktop">
+          <HintPath>..\..\MagicTool\A00-Library\RobotStudio.Services.RobApi.Desktop.dll</HintPath>
+        </Reference>
+        <Reference Include="S7.Net">
+          <HintPath>..\..\MagicTool\A00-Library\S7.Net.dll</HintPath>
+        </Reference>
+        <Reference Include="Serilog, Version=4.3.0.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+          <HintPath>packages\Serilog.4.3.1-dev-02390\lib\net471\Serilog.dll</HintPath>
+        </Reference>
+        <Reference Include="Serilog.Sinks.Console, Version=6.1.1.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+          <HintPath>packages\Serilog.Sinks.Console.6.1.1\lib\net471\Serilog.Sinks.Console.dll</HintPath>
+        </Reference>
+        <Reference Include="Serilog.Sinks.File, Version=7.0.1.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+          <HintPath>packages\Serilog.Sinks.File.7.0.1-dev-02315\lib\net471\Serilog.Sinks.File.dll</HintPath>
+        </Reference>
+        <Reference Include="SharpVectors.Converters.Wpf, Version=1.8.5.0, Culture=neutral, PublicKeyToken=b532964b8548be77, processorArchitecture=MSIL">
+          <HintPath>packages\SharpVectors.Wpf.1.8.5\lib\net48\SharpVectors.Converters.Wpf.dll</HintPath>
+        </Reference>
+        <Reference Include="SharpVectors.Core, Version=1.8.5.0, Culture=neutral, PublicKeyToken=7407205e337c98ef, processorArchitecture=MSIL">
+          <HintPath>packages\SharpVectors.Wpf.1.8.5\lib\net48\SharpVectors.Core.dll</HintPath>
+        </Reference>
+        <Reference Include="SharpVectors.Css, Version=1.8.5.0, Culture=neutral, PublicKeyToken=7a46e3f532fdb787, processorArchitecture=MSIL">
+          <HintPath>packages\SharpVectors.Wpf.1.8.5\lib\net48\SharpVectors.Css.dll</HintPath>
+        </Reference>
+        <Reference Include="SharpVectors.Dom, Version=1.8.5.0, Culture=neutral, PublicKeyToken=517340b6277b1a7a, processorArchitecture=MSIL">
+          <HintPath>packages\SharpVectors.Wpf.1.8.5\lib\net48\SharpVectors.Dom.dll</HintPath>
+        </Reference>
+        <Reference Include="SharpVectors.Model, Version=1.8.5.0, Culture=neutral, PublicKeyToken=2236cfc76b505845, processorArchitecture=MSIL">
+          <HintPath>packages\SharpVectors.Wpf.1.8.5\lib\net48\SharpVectors.Model.dll</HintPath>
+        </Reference>
+        <Reference Include="SharpVectors.Rendering.Wpf, Version=1.8.5.0, Culture=neutral, PublicKeyToken=d0902381100df30e, processorArchitecture=MSIL">
+          <HintPath>packages\SharpVectors.Wpf.1.8.5\lib\net48\SharpVectors.Rendering.Wpf.dll</HintPath>
+        </Reference>
+        <Reference Include="SharpVectors.Runtime.Wpf, Version=1.8.5.0, Culture=neutral, PublicKeyToken=d16e717f0a981fb9, processorArchitecture=MSIL">
+          <HintPath>packages\SharpVectors.Wpf.1.8.5\lib\net48\SharpVectors.Runtime.Wpf.dll</HintPath>
+        </Reference>
+        <Reference Include="System"/>
+        <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+          <HintPath>packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Core"/>
+        <Reference Include="System.Data"/>
+        <Reference Include="System.Diagnostics.DiagnosticSource, Version=8.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+          <HintPath>packages\System.Diagnostics.DiagnosticSource.8.0.1\lib\net462\System.Diagnostics.DiagnosticSource.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+          <HintPath>packages\System.Memory.4.5.5\lib\net461\System.Memory.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Numerics" />
+        <Reference Include="System.Numerics.Vectors, Version=4.1.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+          <HintPath>packages\System.Numerics.Vectors.4.5.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+          <HintPath>packages\System.Runtime.CompilerServices.Unsafe.6.0.0\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Threading.Channels, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+          <HintPath>packages\System.Threading.Channels.8.0.0\lib\net462\System.Threading.Channels.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+          <HintPath>packages\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
+        </Reference>
+        <Reference Include="System.Xml"/>
+        <Reference Include="System.Xaml">
+            <RequiredTargetFramework>4.0</RequiredTargetFramework>
+        </Reference>
+        <Reference Include="WindowsBase"/>
+        <Reference Include="PresentationCore"/>
+        <Reference Include="PresentationFramework"/>
+    </ItemGroup>
+    <ItemGroup>
+        <ApplicationDefinition Include="App.xaml">
+            <Generator>MSBuild:Compile</Generator>
+            <SubType>Designer</SubType>
+        </ApplicationDefinition>
+        <Compile Include="backup-最成功.cs">
+          <DependentUpon>MainWindow.xaml</DependentUpon>
+        </Compile>
+        <Compile Include="backup.cs">
+          <DependentUpon>MainWindow.xaml</DependentUpon>
+        </Compile>
+        <Compile Include="Sup-03VirtualRobot.cs" />
+        <Compile Include="Sup-04VirtualTruss.cs" />
+        <Compile Include="最新完整版备份.cs">
+          <DependentUpon>MainWindow.xaml</DependentUpon>
+        </Compile>
+        <Page Include="MainWindow.xaml">
+            <Generator>MSBuild:Compile</Generator>
+            <SubType>Designer</SubType>
+        </Page>
+        <Compile Include="App.xaml.cs">
+            <DependentUpon>App.xaml</DependentUpon>
+            <SubType>Code</SubType>
+        </Compile>
+        <Compile Include="Egm.cs" />
+        <Compile Include="MainWindow.xaml.cs">
+            <DependentUpon>MainWindow.xaml</DependentUpon>
+            <SubType>Code</SubType>
+        </Compile>
+    </ItemGroup>
+    <ItemGroup>
+        <Compile Include="Properties\AssemblyInfo.cs">
+            <SubType>Code</SubType>
+        </Compile>
+        <Compile Include="Properties\Resources.Designer.cs">
+            <AutoGen>True</AutoGen>
+            <DesignTime>True</DesignTime>
+            <DependentUpon>Resources.resx</DependentUpon>
+        </Compile>
+        <EmbeddedResource Include="Properties\Resources.resx">
+            <Generator>ResXFileCodeGenerator</Generator>
+            <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+        </EmbeddedResource>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="App.config"/>
+        <None Include="packages.config" />
+    </ItemGroup>
+    <ItemGroup>
+      <Content Include="Icon.png">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="IconTest.svg">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="IconHelp.svg">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="IconStop.svg">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="IconRefresh.svg">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="OtherHelper\OtherHelper.csproj">
+        <Project>{b61651e3-da71-4512-93ad-6529874b8a53}</Project>
+        <Name>OtherHelper</Name>
+      </ProjectReference>
+      <ProjectReference Include="PlcHelper\PlcHelper.csproj">
+        <Project>{ff610a2f-eb0e-478d-a056-2196b922d1c4}</Project>
+        <Name>PlcHelper</Name>
+      </ProjectReference>
+      <ProjectReference Include="RobotHelper\RobotHelper.csproj">
+        <Project>{06cad53d-aa47-4475-94a2-56fd145bb47f}</Project>
+        <Name>RobotHelper</Name>
+      </ProjectReference>
+    </ItemGroup>
+    <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+    <Import Project="packages\Serilog.4.3.1-dev-02390\build\Serilog.targets" Condition="Exists('packages\Serilog.4.3.1-dev-02390\build\Serilog.targets')" />
+    <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+      <PropertyGroup>
+        <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105.The missing file is {0}.</ErrorText>
+      </PropertyGroup>
+      <Error Condition="!Exists('packages\Serilog.4.3.1-dev-02390\build\Serilog.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Serilog.4.3.1-dev-02390\build\Serilog.targets'))" />
+    </Target>
+</Project>
