@@ -360,7 +360,7 @@
                 <ToggleButton Style="{StaticResource ModernToggleSwitch}" 
                               IsChecked="False"
                               x:Name="RlListener"
-                              />
+                              Click="RlListener_Click"/>
                 <Grid>
                     <Ellipse x:Name="RlConnection"
                              Width="20" Height="20"
