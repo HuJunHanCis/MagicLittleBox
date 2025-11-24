@@ -36,6 +36,15 @@ namespace MagicLittleBox
 {
     public partial class MainWindow
     {
+        // 双系统实例化
+        private readonly SupVirtualRobot _virtualRobot = SupVirtualRobot.Instance;
+        private readonly SupVirtualTruss _virtualTruss = SupVirtualTruss.Instance;
+        
+        // 警示四色
+        private static readonly SolidColorBrush BrushRed = new SolidColorBrush(Color.FromArgb(0xFF, 0xC9, 0x4F, 0x4F));
+        private static readonly SolidColorBrush BrushYel = new SolidColorBrush(Color.FromArgb(0xFF, 0xD9, 0xB7, 0x2B));
+        private static readonly SolidColorBrush BrushGre = new SolidColorBrush(Color.FromArgb(0xFF, 0x57, 0x96, 0x5C));
+        private static readonly SolidColorBrush BrushGry = new SolidColorBrush(Color.FromArgb(0xFF, 0x91, 0x91, 0x91));
 
         #region WPF相关功能
 
@@ -179,7 +188,10 @@ namespace MagicLittleBox
 
             // RlListener 按钮是否处于监听状态
             private bool _rlListenerEnabled = false;
-            private void RlListener_Click(object sender, RoutedEventArgs e)
+            // EGM 是否处于运行状态
+            private bool _egmRunning = false;
+            
+            private void RlListenerToggle(object sender, RoutedEventArgs e)
             {
                 // ToggleButton 本身的状态
                 bool isChecked = RlListener.IsChecked == true;
@@ -196,7 +208,106 @@ namespace MagicLittleBox
                     Log.Information("[RL监听]: RL 监听已关闭");
                 }
             }
-        
+
+            private void EgmStart(object sender, RoutedEventArgs e)
+            {
+                try
+                {
+                    if (_egmRunning)
+                    {
+                        Log.Warning("[EGM]: 已经处于运行状态，忽略重复启动");
+                        return;
+                    }
+
+                    Log.Information("[EGM]: 开始启动流程");
+
+                    // 1. 确保 UDP 监听已启动（如果端口无效，会在内部弹窗并返回）
+                    UdpListener();
+                    if (_udpListenerClient == null)
+                    {
+                        Log.Error("[EGM]: UDP 监听未成功启动，EGM 启动中止");
+                        return;
+                    }
+
+                    // 2. 启动后台定频状态更新线程（机器人 + 桁架状态 + 文本 + 颜色）
+                    StartDataUpdateThread();
+
+                    // 3. 自动打开 RL 监听（会触发 RlListenerToggle，再次调用 UdpListener 也没问题）
+                    if (RlListener.IsChecked != true)
+                    {
+                        RlListener.IsChecked = true;
+                    }
+
+                    _egmRunning = true;
+
+                    Log.Information("[EGM]: 启动流程完成");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[EGM]: 启动失败");
+                }
+            }
+            
+            private void EgmStop(object sender, RoutedEventArgs e)
+            {
+                try
+                {
+                    if (!_egmRunning)
+                    {
+                        Log.Warning("[EGM]: 当前不在运行状态，忽略停止请求");
+                        return;
+                    }
+
+                    Log.Information("[EGM]: 开始停止流程");
+
+                    // 1. 停止后台定频状态更新
+                    StopDataUpdateThread();
+
+                    // 2. 停止 UDP 监听（真正关掉 socket）
+                    StopUdpListener();
+
+                    // 3. 关闭 RL 监听按钮（只是逻辑，不再解析 RL JSON）
+                    if (RlListener.IsChecked == true)
+                    {
+                        RlListener.IsChecked = false;
+                    }
+
+                    // 4. 清理 EGM 相关状态
+                    _egmRunning = false;
+                    _robotEndpoint = null;   // 下次重新建立 EGM 通信时，从头开始
+                    
+                    Log.Information("[EGM]: 停止流程完成");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[EGM]: 停止失败");
+                    MessageBox.Show($"EGM 停止失败: {ex.Message}",
+                        "EGM 错误",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+            
+            private void ResetTruss(object sender, RoutedEventArgs e)
+            {
+                
+            }
+            
+            private void ResetRobot(object sender, RoutedEventArgs e)
+            {
+                
+            }
+
+            private void EmergyStop(object sender, RoutedEventArgs e)
+            {
+                
+            }
+            
+            private void EnableMotors(object sender, RoutedEventArgs e)
+            {
+                
+            }
+
         #endregion
 
         #region UDP监听区域
@@ -208,7 +319,7 @@ namespace MagicLittleBox
             /// <summary>
             /// 根据界面上的 PortListener TextBox 的值开启 UDP 监听服务
             /// </summary>
-            private void UdpListener()
+            private void UdpListener(bool box = true)
             {
                 // 已经在监听，但允许重复启动
                 if (_udpListenerClient != null)
@@ -229,11 +340,14 @@ namespace MagicLittleBox
                 if (portText == null)
                 {
                     Log.Error("[UDP]: 监听端口不合法，无法启动 UDP 监听");
-                    MessageBox.Show(
-                        "监听端口不合法，请输入 1~65534 之间的整数端口号。",
-                        "端口错误",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error);
+                    if (box)
+                    {
+                        MessageBox.Show(
+                            "监听端口不合法，请输入 1~65534 之间的整数端口号。",
+                            "端口错误",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                    }
 
                     // 要求阻塞 UI：MessageBox.Show 本身就是阻塞的
                     return;
@@ -393,42 +507,226 @@ namespace MagicLittleBox
 
         #endregion
 
-        #region 三大处理函数
-
-        private IPEndPoint _robotEndpoint; // 机器人端点
-        private uint _egmSequenceNumber; // EGM序列号
-        private readonly double[] _egmPositions = { 0, 0, 0, 0, 0, 0 };
-        private void ProcessEgmMessage(EgmRobot robotMessage, IPEndPoint sender)
-        {
-            try
+        #region 后台定频更新
+        
+            private (string text, SolidColorBrush color) GetRobotStatusInfo(int status)
             {
-                _robotEndpoint = sender;
-                if (robotMessage?.FeedBack?.Joints != null)
+                switch (status)
                 {
-                    var joints = robotMessage.FeedBack.Joints;
+                    case -1:
+                        // 未连接／异常
+                        return ("异常状态", BrushGry);
 
-                    // 更新关节位置到长度为6的数组
-                    for (int i = 0; i < 6; i++)
+                    case 2:
+                        // MotorsOff
+                        return ("电机关闭", BrushYel);
+
+                    case 3:
+                        // MotorsOn
+                        return ("正常运行", BrushGre);
+
+                    case 6:
+                        // EmergencyStopReset
+                        return ("急停复位", BrushRed);
+
+                    case 4:
+                    case 5:
+                    case 7:
+                    case 99:
+                        // GuardStop / EStop / SystemFailure / Unknown
+                        return ("紧急停止", BrushRed);
+
+                    default:
+                        return ("未知状态", BrushGry);
+                }
+            }
+
+            private static (string text, SolidColorBrush color) GetPlcStatusInfo(int status)
+            {
+                switch (status)
+                {
+                    case -1:
+                        // 控制器对象为空、异常等
+                        return ("异常状态", BrushGry);   // 灰色
+
+                    case 1:
+                        // 不在线
+                        return ("离线状态", BrushRed);   // 红色
+
+                    case 2:
+                        // 在线，本地手动模式
+                        return ("手动模式", BrushYel);   // 黄色
+
+                    case 3:
+                        // 在线，远程调试 / 远程自动模式
+                        return ("远程模式", BrushGre);   // 绿色
+
+                    default:
+                        return ("未知状态", BrushGry);   // 灰色
+                }
+            }
+
+            // 后台数据更新用到的字段
+            private CancellationTokenSource _dataUpdateCts;
+            private Task _dataUpdateTask;
+
+            // 当前八轴数据：J1~J6 + TrussX + TrussY
+            private double[] _currentEightAxes = new double[8];
+            private int _currentRobotStatus;
+            private int _currentTrussStatus;
+
+            // 启动后台数据更新线程
+            private void StartDataUpdateThread()
+            {
+                // 若已有旧任务在跑，先停掉
+                StopDataUpdateThread();
+
+                _dataUpdateCts = new CancellationTokenSource();
+                var ct = _dataUpdateCts.Token;
+
+                _dataUpdateTask = Task.Run(async () => await RunDataUpdateLoop(ct));
+            }
+
+            // 后台数据更新循环（只负责采集 + 刷新界面）
+            private async Task RunDataUpdateLoop(CancellationToken ct)
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    try
                     {
-                        _egmPositions[i] = joints.Joints[i];  // 直接取double值
+                        // 1. 获取机器人当前关节
+                        double[] eightAxes = new double[8];
+
+                        var (_, _, _, _, _, _, _,
+                             j1, j2, j3, j4, j5, j6) = _virtualRobot.GetCurrentPose();
+
+                        eightAxes[0] = j1;
+                        eightAxes[1] = j2;
+                        eightAxes[2] = j3;
+                        eightAxes[3] = j4;
+                        eightAxes[4] = j5;
+                        eightAxes[5] = j6;
+
+                        // 2. 获取桁架当前坐标
+                        var (trussX, trussY, _, _) = _virtualTruss.GetTrussPose();
+                        eightAxes[6] = trussX;
+                        eightAxes[7] = trussY;
+
+                        // 3. 写入当前八轴状态
+                        _currentEightAxes = eightAxes;
+
+                        // 4. 获取状态码
+                        _currentRobotStatus = _virtualRobot.GetVirRobotStatus_Full();
+                        _currentTrussStatus = _virtualTruss.GetVirPlcStatus_Full();
+
+                        var (robotText, robotColor) = GetRobotStatusInfo(_currentRobotStatus);
+                        var (plcText, plcColor) = GetPlcStatusInfo(_currentTrussStatus);
+
+                        // 5. 更新界面显示
+                        try
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                // 关节角
+                                AbbJ1.Text = j1.ToString("F3");
+                                AbbJ2.Text = j2.ToString("F3");
+                                AbbJ3.Text = j3.ToString("F3");
+                                AbbJ4.Text = j4.ToString("F3");
+                                AbbJ5.Text = j5.ToString("F3");
+                                AbbJ6.Text = j6.ToString("F3");
+
+                                // 桁架位置
+                                PlcX.Text = trussX.ToString("F4");
+                                PlcY.Text = trussY.ToString("F4");
+
+                                // 状态文本 + 颜色
+                                AbbStatusText.Text = robotText;
+                                AbbStatusText.Foreground = robotColor;
+
+                                PlcStatusText.Text = plcText;
+                                PlcStatusText.Foreground = plcColor;
+                            });
+                        }
+                        catch
+                        {
+                            // 界面关闭等情况，忽略即可
+                        }
+
+                        // 6. 高频更新 - 50ms 间隔
+                        await Task.Delay(50, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        // real data update
+                        Log.Error($"[RDU]: 更新失败: {ex.Message}");
+                        StopDataUpdateThread();
                     }
                 }
             }
-            catch (Exception ex)
+
+            // 停止后台数据更新
+            private void StopDataUpdateThread()
             {
-                Log.Warning($"[EGM]: 解析EGM消息失败: {ex.Message}");
+                try
+                {
+                    if (_dataUpdateCts != null)
+                    {
+                        _dataUpdateCts.Cancel();
+                    }
+
+                    if (_dataUpdateTask != null)
+                    {
+                        _dataUpdateTask.Wait(1000); // 等待 1 秒让任务结束
+                    }
+
+                    _dataUpdateCts?.Dispose();
+                    _dataUpdateCts = null;
+                    _dataUpdateTask = null;
+                }
+                catch (Exception ex)
+                {
+                    Log.Error($"[后台数据更新]: 停止失败: {ex.Message}");
+                }
             }
-        }
-        
-        private void ProcessPoseMessage(EgmRobot robotMessage, IPEndPoint sender)
-        {
+
+        #endregion
+
+        #region 三大处理函数
+
+            private IPEndPoint _robotEndpoint; // 机器人端点
+            private uint _egmSequenceNumber; // EGM序列号
+            private readonly double[] _egmPositions = { 0, 0, 0, 0, 0, 0 };
+            private void ProcessEgmMessage(EgmRobot robotMessage, IPEndPoint sender)
+            {
+                try
+                {
+                    _robotEndpoint = sender;
+                    if (robotMessage?.FeedBack?.Joints != null)
+                    {
+                        var joints = robotMessage.FeedBack.Joints;
+
+                        // 更新关节位置到长度为6的数组
+                        for (int i = 0; i < 6; i++)
+                        {
+                            _egmPositions[i] = joints.Joints[i];  // 直接取double值
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning($"[EGM]: 解析EGM消息失败: {ex.Message}");
+                }
+            }
             
-        }
-        
-        private void ProcessCtrlMessage(EgmRobot robotMessage, IPEndPoint sender)
-        {
+            private void ProcessPoseMessage(EgmRobot robotMessage, IPEndPoint sender)
+            {
+                
+            }
             
-        }
+            private void ProcessCtrlMessage(EgmRobot robotMessage, IPEndPoint sender)
+            {
+                
+            }
 
         #endregion
 
@@ -438,6 +736,8 @@ namespace MagicLittleBox
         public MainWindow()
         {
             InitializeComponent();
+            UdpListener(false);
+            StartDataUpdateThread();
         }
 
     }

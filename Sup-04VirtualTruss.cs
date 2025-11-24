@@ -157,6 +157,44 @@ namespace MagicLittleBox
             }
         }
         
+        // 07 : 单独控制器状态
+        public int GetVirPlcStatus_Full()
+        {
+            try
+            {
+                // 控制器对象不存在
+                if (_apTrussVirtual == null)
+                {
+                    return -1;
+                }
+
+                // 控制器不在线
+                if (!_apTrussVirtual.Online)
+                {
+                    return 1;
+                }
+
+                // Online 状态下，区分工作模式
+                bool isRemoteMode = _apTrussVirtual.GetWorkMode();
+
+                if (isRemoteMode)
+                {
+                    // 在线，远程调试 / 远程自动模式
+                    return 3;
+                }
+                else
+                {
+                    // 在线，现场手动控制模式
+                    return 2;
+                }
+            }
+            catch
+            {
+                // 任何异常都视为异常状态
+                return -1;
+            }
+        }
+        
         // 08 : 单独X轴状态
         public int GetVirXTrussStatus()
         {
