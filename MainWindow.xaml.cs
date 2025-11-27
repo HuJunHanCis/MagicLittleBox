@@ -46,7 +46,7 @@ namespace MagicLittleBox
         private static readonly SolidColorBrush BrushGre = new SolidColorBrush(Color.FromArgb(0xFF, 0x57, 0x96, 0x5C));
         private static readonly SolidColorBrush BrushGry = new SolidColorBrush(Color.FromArgb(0xFF, 0x91, 0x91, 0x91));
 
-        #region WPF相关功能
+        #region WPF相关功能: 100%
 
             private void OnWindowDragMove(object sender, MouseButtonEventArgs e)
             {
@@ -67,7 +67,7 @@ namespace MagicLittleBox
 
         #endregion
 
-        #region CHECK检查区域
+        #region CHECK检查区域: 100%
 
             // 1. 检查频率：4~1000 且自动调整为最近的 4 的倍数
             private string CheckValidFreq(TextBox textBox)
@@ -200,12 +200,11 @@ namespace MagicLittleBox
 
                 if (isChecked)
                 {
-                    Log.Information("[RL监听]: RL 监听已开启");
-                    UdpListener();      // 如果希望点开就启动监听
+                    Log.Information("[RLL]: RL 监听已开启");
                 }
                 else
                 {
-                    Log.Information("[RL监听]: RL 监听已关闭");
+                    Log.Information("[RLL]: RL 监听已关闭");
                 }
             }
 
@@ -228,9 +227,9 @@ namespace MagicLittleBox
                         Log.Error("[EGM]: UDP 监听未成功启动，EGM 启动中止");
                         return;
                     }
-
-                    // 2. 启动后台定频状态更新线程（机器人 + 桁架状态 + 文本 + 颜色）
-                    StartDataUpdateThread();
+                    
+                    // 2. 监听成功后再锁 UI
+                    LockEgmRunningStatus();
 
                     // 3. 自动打开 RL 监听（会触发 RlListenerToggle，再次调用 UdpListener 也没问题）
                     if (RlListener.IsChecked != true)
@@ -260,13 +259,12 @@ namespace MagicLittleBox
 
                     Log.Information("[EGM]: 开始停止流程");
 
-                    // 1. 停止后台定频状态更新
-                    StopDataUpdateThread();
+                    LockInitStatus();
 
-                    // 2. 停止 UDP 监听（真正关掉 socket）
+                    // 1. 停止 UDP 监听（真正关掉 socket）
                     StopUdpListener();
 
-                    // 3. 关闭 RL 监听按钮（只是逻辑，不再解析 RL JSON）
+                    // 2. 关闭 RL 监听按钮（只是逻辑，不再解析 RL JSON）
                     if (RlListener.IsChecked == true)
                     {
                         RlListener.IsChecked = false;
@@ -308,9 +306,32 @@ namespace MagicLittleBox
                 
             }
 
+            private void F4Refresh(object sender, RoutedEventArgs e)
+            {
+                try
+                {
+                    Log.Information("[F4]: 手动刷新数据更新线程");
+        
+                    // 先停止现有的数据更新线程
+                    StopDataUpdateThread();
+        
+                    // 等待一小段时间确保线程完全停止
+                    Thread.Sleep(50);
+        
+                    // 重新启动数据更新线程
+                    StartDataUpdateThread();
+        
+                    Log.Information("[F4]: 数据更新线程刷新完成");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[F4]: 刷新数据更新线程时发生异常");
+                }
+            }
+
         #endregion
 
-        #region UDP监听区域
+        #region UDP监听区域: 100%
 
             // UDP 监听用到的字段
             private UdpClient _udpListenerClient;
@@ -322,6 +343,7 @@ namespace MagicLittleBox
             private void UdpListener(bool box = true)
             {
                 // 已经在监听，但允许重复启动
+                
                 if (_udpListenerClient != null)
                 {
                     _udpListenerClient.Close();
@@ -498,6 +520,11 @@ namespace MagicLittleBox
                 {
                     // 正常：关闭 client 时会触发，直接吃掉即可
                 }
+                catch (SocketException ex)
+                {
+                    // 一个封锁操作被对 WSACancelBlockingCall 的调用中断 = 我们主动关掉了 socket
+                    Log.Error(ex, "[UDP]: 监听循环被取消");
+                }
                 catch (Exception ex)
                 {
                     Log.Error(ex, "[UDP]: 监听循环异常");
@@ -590,56 +617,73 @@ namespace MagicLittleBox
             // 后台数据更新循环（只负责采集 + 刷新界面）
             private async Task RunDataUpdateLoop(CancellationToken ct)
             {
-                while (!ct.IsCancellationRequested)
+                try
                 {
-                    try
+                    while (!ct.IsCancellationRequested)
                     {
-                        // 1. 获取机器人当前关节
                         double[] eightAxes = new double[8];
 
-                        var (_, _, _, _, _, _, _,
-                             j1, j2, j3, j4, j5, j6) = _virtualRobot.GetCurrentPose();
-
-                        eightAxes[0] = j1;
-                        eightAxes[1] = j2;
-                        eightAxes[2] = j3;
-                        eightAxes[3] = j4;
-                        eightAxes[4] = j5;
-                        eightAxes[5] = j6;
-
-                        // 2. 获取桁架当前坐标
-                        var (trussX, trussY, _, _) = _virtualTruss.GetTrussPose();
-                        eightAxes[6] = trussX;
-                        eightAxes[7] = trussY;
-
-                        // 3. 写入当前八轴状态
-                        _currentEightAxes = eightAxes;
-
-                        // 4. 获取状态码
+                        // 1. 获取状态码
                         _currentRobotStatus = _virtualRobot.GetVirRobotStatus_Full();
                         _currentTrussStatus = _virtualTruss.GetVirPlcStatus_Full();
 
                         var (robotText, robotColor) = GetRobotStatusInfo(_currentRobotStatus);
                         var (plcText, plcColor) = GetPlcStatusInfo(_currentTrussStatus);
 
+                        // 2. 获取机器人当前关节
+                        if (_currentRobotStatus == -1)
+                        {
+                            eightAxes[0] = 0;
+                            eightAxes[1] = 0;
+                            eightAxes[2] = 0;
+                            eightAxes[3] = 0;
+                            eightAxes[4] = 0;
+                            eightAxes[5] = 0;
+                        }
+                        else
+                        {
+                            var (_, _, _, _, _, _, _,
+                                j1, j2, j3, j4, j5, j6) = _virtualRobot.GetCurrentPose();
+
+                            eightAxes[0] = j1;
+                            eightAxes[1] = j2;
+                            eightAxes[2] = j3;
+                            eightAxes[3] = j4;
+                            eightAxes[4] = j5;
+                            eightAxes[5] = j6;
+                        }
+
+                        // 3. 获取桁架当前坐标
+                        if (_currentTrussStatus == -1)
+                        {
+                            eightAxes[6] = 0;
+                            eightAxes[7] = 0;
+                        }
+                        else
+                        {
+                            var (trussX, trussY, _, _) = _virtualTruss.GetTrussPose();
+                            eightAxes[6] = trussX;
+                            eightAxes[7] = trussY;
+                        }
+
+                        // 4. 写入当前八轴状态
+                        _currentEightAxes = eightAxes;
+
                         // 5. 更新界面显示
                         try
                         {
                             Dispatcher.Invoke(() =>
                             {
-                                // 关节角
-                                AbbJ1.Text = j1.ToString("F3");
-                                AbbJ2.Text = j2.ToString("F3");
-                                AbbJ3.Text = j3.ToString("F3");
-                                AbbJ4.Text = j4.ToString("F3");
-                                AbbJ5.Text = j5.ToString("F3");
-                                AbbJ6.Text = j6.ToString("F3");
+                                AbbJ1.Text = eightAxes[0].ToString("F3");
+                                AbbJ2.Text = eightAxes[1].ToString("F3");
+                                AbbJ3.Text = eightAxes[2].ToString("F3");
+                                AbbJ4.Text = eightAxes[3].ToString("F3");
+                                AbbJ5.Text = eightAxes[4].ToString("F3");
+                                AbbJ6.Text = eightAxes[5].ToString("F3");
 
-                                // 桁架位置
-                                PlcX.Text = trussX.ToString("F4");
-                                PlcY.Text = trussY.ToString("F4");
+                                PlcX.Text = eightAxes[6].ToString("F4");
+                                PlcY.Text = eightAxes[7].ToString("F4");
 
-                                // 状态文本 + 颜色
                                 AbbStatusText.Text = robotText;
                                 AbbStatusText.Foreground = robotColor;
 
@@ -649,18 +693,21 @@ namespace MagicLittleBox
                         }
                         catch
                         {
-                            // 界面关闭等情况，忽略即可
+                            // 窗口关闭等情况，忽略
                         }
 
-                        // 6. 高频更新 - 50ms 间隔
+                        // 6. 高频更新 - 50ms 间隔（支持取消）
                         await Task.Delay(50, ct);
                     }
-                    catch (Exception ex)
-                    {
-                        // real data update
-                        Log.Error($"[RDU]: 更新失败: {ex.Message}");
-                        StopDataUpdateThread();
-                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // 手动取消（StopDataUpdateThread / 程序退出）时的正常结束
+                    Log.Information("[RDU]: 数据更新任务已正常取消");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[RDU]: 更新失败");
                 }
             }
 
@@ -718,14 +765,93 @@ namespace MagicLittleBox
                 }
             }
             
-            private void ProcessPoseMessage(EgmRobot robotMessage, IPEndPoint sender)
+            private CancellationTokenSource _rlPoseSendCts;
+            private void ProcessPoseMessage(dynamic jsonMessage, string timeStamp)
             {
                 
             }
             
-            private void ProcessCtrlMessage(EgmRobot robotMessage, IPEndPoint sender)
+            private void ProcessCtrlMessage(dynamic jsonMessage, string timeStamp)
             {
+                try
+                {
+                    if (jsonMessage.Message.ToString() == "STOP")
+                    {
+
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "[RLC]: 读取控制指令时发生异常");
+                }
+            }
+
+        #endregion
+
+        #region 积分计算相关
+
+            private List<double[]> ComputeJointDisplacements(double[] velocities, int steps, int intervalMs)
+            {
+                var result = new List<double[]>(steps);
+                if (velocities == null || velocities.Length < 6 || steps <= 0 || intervalMs <= 0)
+                {
+                    return result;
+                }
+
+                double dt = intervalMs / 1000.0; // 每一步对应的时间（秒）
+
+                for (int i = 0; i < steps; i++)
+                {
+                    var stepDelta = new double[6];
+                    for (int j = 0; j < 6; j++)
+                    {
+                        stepDelta[j] = velocities[j] * dt;  // v * dt = Δθ
+                    }
+                    result.Add(stepDelta);
+                }
+
+                return result;
+            }
+
+        #endregion
+
+        #region WPF界面控件锁
+
+            private void LockInitStatus()
+            {
+                IpReinLearn.IsEnabled = true;
+                PortReinLearn.IsEnabled = true;
+                IpEgm.IsEnabled = true;
+                PortEgm.IsEnabled = true;
+                IpUe.IsEnabled = true;
+                PortUe.IsEnabled = true;
+                FreRobot.IsEnabled = true;
+                FreTruss.IsEnabled = true;
+                FreOutRlUe.IsEnabled = true;
+                PortListener.IsEnabled = true;
+                    
+                RlListener.IsEnabled = false;
                 
+                EgmStartButton.IsEnabled = true;
+                EgmStopButton.IsEnabled = false;
+            }
+            private void LockEgmRunningStatus()
+            {
+                IpReinLearn.IsEnabled = false;
+                PortReinLearn.IsEnabled = false;
+                IpEgm.IsEnabled = false;
+                PortEgm.IsEnabled = false;
+                IpUe.IsEnabled = false;
+                PortUe.IsEnabled = false;
+                FreRobot.IsEnabled = false;
+                FreTruss.IsEnabled = false;
+                FreOutRlUe.IsEnabled = false;
+                PortListener.IsEnabled = false;
+                    
+                RlListener.IsEnabled = true;
+                
+                EgmStartButton.IsEnabled = false;
+                EgmStopButton.IsEnabled = true;
             }
 
         #endregion
@@ -736,8 +862,10 @@ namespace MagicLittleBox
         public MainWindow()
         {
             InitializeComponent();
-            UdpListener(false);
+            LockInitStatus();
             StartDataUpdateThread();
+            
+            UdpListener();
         }
 
     }

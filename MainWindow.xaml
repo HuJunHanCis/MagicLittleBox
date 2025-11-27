@@ -228,7 +228,7 @@
                                     Height="20" Width="20"
                                     Margin="0"
                                     VerticalAlignment="Center"
-                                    >
+                                    Click="F4Refresh">
                                 <svgc:SvgViewbox Source="IconRefresh.svg" 
                                                  Width="13" 
                                                  Height="13"
