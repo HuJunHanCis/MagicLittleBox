@@ -200,11 +200,11 @@ namespace MagicLittleBox
 
                 if (isChecked)
                 {
-                    Log.Information("[RLL]: RL 监听已开启");
+                    Log.Information("[RLL]: RL监听已开启");
                 }
                 else
                 {
-                    Log.Information("[RLL]: RL 监听已关闭");
+                    Log.Information("[RLL]: RL监听已关闭");
                 }
             }
 
@@ -231,7 +231,10 @@ namespace MagicLittleBox
                     // 2. 监听成功后再锁 UI
                     LockEgmRunningStatus();
 
-                    // 3. 自动打开 RL 监听（会触发 RlListenerToggle，再次调用 UdpListener 也没问题）
+                    // 3. 启动数据发送线程
+                    StartDataSendThread();
+
+                    // 4. 打开RL监听
                     if (RlListener.IsChecked != true)
                     {
                         RlListener.IsChecked = true;
@@ -261,10 +264,13 @@ namespace MagicLittleBox
 
                     LockInitStatus();
 
-                    // 1. 停止 UDP 监听（真正关掉 socket）
+                    // 1. 停止数据发送线程
+                    StopDataSendThread();
+                    
+                    // 2. 停止 UDP 监听（真正关掉 socket）
                     StopUdpListener();
 
-                    // 2. 关闭 RL 监听按钮（只是逻辑，不再解析 RL JSON）
+                    // 3. 关闭 RL 监听按钮（只是逻辑，不再解析 RL JSON）
                     if (RlListener.IsChecked == true)
                     {
                         RlListener.IsChecked = false;
@@ -484,7 +490,8 @@ namespace MagicLittleBox
                                         Dispatcher.Invoke(() =>
                                         {
                                             // 点亮绿灯
-                                            RlConnection.Fill = (SolidColorBrush)(new BrushConverter().ConvertFrom("#4CAF50"));
+                                            RlConnection.Fill =
+                                                (SolidColorBrush)(new BrushConverter().ConvertFrom("#4CAF50"));
                                         });
 
                                         Task.Delay(500).ContinueWith(_ =>
@@ -493,7 +500,9 @@ namespace MagicLittleBox
                                             {
                                                 Dispatcher.Invoke(() =>
                                                 {
-                                                    RlConnection.Fill = (SolidColorBrush)(new BrushConverter().ConvertFrom("#999999"));
+                                                    RlConnection.Fill =
+                                                        (SolidColorBrush)(new BrushConverter().ConvertFrom(
+                                                            "#999999"));
                                                 });
                                             }
                                             catch
@@ -519,11 +528,12 @@ namespace MagicLittleBox
                 catch (ObjectDisposedException)
                 {
                     // 正常：关闭 client 时会触发，直接吃掉即可
+                    Log.Error("[UDP]: 监听循环被强制关闭");
                 }
-                catch (SocketException ex)
+                catch (SocketException)
                 {
                     // 一个封锁操作被对 WSACancelBlockingCall 的调用中断 = 我们主动关掉了 socket
-                    Log.Error(ex, "[UDP]: 监听循环被取消");
+                    Log.Error("[UDP]: 监听循环被取消");
                 }
                 catch (Exception ex)
                 {
@@ -738,6 +748,244 @@ namespace MagicLittleBox
 
         #endregion
 
+        #region 仿真及学习的数据发送
+
+            // 数据发送用到的字段
+            private CancellationTokenSource _dataSendCts;
+            private Task _dataSendTask;
+            private UdpClient _rlUdpClient;
+            private UdpClient _ueUdpClient;
+            private IPEndPoint _rlEndpoint;
+            private IPEndPoint _ueEndpoint;
+            
+            // 启动数据发送线程
+            private void StartDataSendThread()
+            {
+                // 若已有旧任务在跑，先停掉
+                StopDataSendThread();
+
+                // 初始化 UDP 发送客户端
+                InitializeUdpClients();
+
+                // 如果没有合法的发送目标，直接返回
+                if (_rlUdpClient == null && _ueUdpClient == null)
+                {
+                    Log.Warning("[SED]: 没有合法的发送目标，数据发送线程未启动");
+                    return;
+                }
+
+                _dataSendCts = new CancellationTokenSource();
+                var ct = _dataSendCts.Token;
+
+                _dataSendTask = Task.Run(async () => await RunDataSendLoop(ct));
+                Log.Information("[SED]: 数据发送线程已启动");
+            }
+
+            // 初始化发送客户端双端
+            private void InitializeUdpClients()
+            {
+                // 1. 初始化 RL 发送客户端
+                string rlIpText = CheckValidAddr(IpReinLearn);
+                string rlPortText = CheckValidPort(PortReinLearn);
+        
+                if (rlIpText != null && rlPortText != null)
+                {
+                    try
+                    {
+                        _rlEndpoint = new IPEndPoint(IPAddress.Parse(rlIpText), int.Parse(rlPortText));
+                        _rlUdpClient = new UdpClient();
+                        Log.Information("[SED]: RL发送目标已设置: {IP}:{Port}", rlIpText, rlPortText);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "[SED]: 创建RLUDP客户端失败");
+                        _rlUdpClient = null;
+                    }
+                }
+                else
+                {
+                    Log.Warning("[SED]: RLIP或端口不合法，跳过RL发送");
+                    _rlUdpClient = null;
+                }
+
+                // 2. 初始化 UE 发送客户端
+                string ueIpText = CheckValidAddr(IpUe);
+                string uePortText = CheckValidPort(PortUe);
+        
+                if (ueIpText != null && uePortText != null)
+                {
+                    try
+                    {
+                        _ueEndpoint = new IPEndPoint(IPAddress.Parse(ueIpText), int.Parse(uePortText));
+                        _ueUdpClient = new UdpClient();
+                        Log.Information("[SED]: UE发送目标已设置: {IP}:{Port}", ueIpText, uePortText);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "[SED]: 创建UEUDP客户端失败");
+                        _ueUdpClient = null;
+                    }
+                }
+                else
+                {
+                    Log.Warning("[SED]: UEIP或端口不合法，跳过UE发送");
+                    _ueUdpClient = null;
+                }
+            }
+            
+            // 停止数据发送线程
+            private void StopDataSendThread()
+            {
+                try
+                {
+                    if (_dataSendCts != null)
+                    {
+                        _dataSendCts.Cancel();
+                        _dataSendCts.Dispose();
+                        _dataSendCts = null;
+                    }
+
+                    if (_dataSendTask != null)
+                    {
+                        _dataSendTask.Wait(1000);
+                        _dataSendTask = null;
+                    }
+
+                    // 清理 UDP 客户端
+                    try
+                    {
+                        _rlUdpClient?.Close();
+                        _ueUdpClient?.Close();
+                        _rlUdpClient = null;
+                        _ueUdpClient = null;
+                        _rlEndpoint = null;
+                        _ueEndpoint = null;
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "[SED]: 清理UDP客户端时发生异常");
+                    }
+            
+                    Log.Information("[SED]: 数据发送线程已停止");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[SED]: 停止数据发送线程失败");
+                }
+            }
+            
+            // 数据发送循环
+            private async Task RunDataSendLoop(CancellationToken ct)
+            {
+                try
+                {
+                    // 获取发送频率
+                    string freqText = CheckValidFreq(FreOutRlUe);
+                    if (freqText == null)
+                    {
+                        Log.Error("[SED]: 发送频率不合法，发送线程退出");
+                        return;
+                    }
+
+                    int sendInterval = int.Parse(freqText);
+                    Log.Information("[SED]: 开始发送循环，频率: {Interval}ms", sendInterval);
+
+                    while (!ct.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            // 收集数据并发送
+                            var sendData = CollectDataSend();
+                    
+                            // 发送到RL
+                            if (_rlUdpClient != null && _rlEndpoint != null && sendData != null && sendData.Length > 0)
+                            {
+                                await _rlUdpClient.SendAsync(sendData, sendData.Length, _rlEndpoint);
+                            }
+                    
+                            // 发送到UE
+                            if (_ueUdpClient != null && _ueEndpoint != null && sendData != null && sendData.Length > 0)
+                            {
+                                await _ueUdpClient.SendAsync(sendData, sendData.Length, _ueEndpoint);
+                            }
+                    
+                            // 等待指定间隔
+                            await Task.Delay(sendInterval, ct);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex, "[SED]: 发送循环内部错误");
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    Log.Information("[SED]: 数据发送任务已正常取消");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[SED]: 发送循环异常退出");
+                }
+            }
+            
+            // 收集数据
+            private byte[] CollectDataSend()
+            {
+                try
+                {
+                    // 收集当前八轴数据
+                    var currentData = _currentEightAxes;
+                    
+                    // 2. 获取机器人当前关节
+                    if (_currentRobotStatus == -1 || _currentTrussStatus == -1)
+                    {
+                        // 根据具体状态设置对应的状态文本
+                        string robotStatusText = _currentRobotStatus == -1 ? "Stopped" : "Running";
+                        string trussStatusText = _currentTrussStatus == -1 ? "Stopped" : "Running";
+                        var sendData = new
+                        {
+                            Header = "ERROR",
+                            Timestamp = DateTime.Now.ToString("yyMMddHHmmssfff"),
+                            RobotStatus = robotStatusText,
+                            TrussStatus = trussStatusText
+                        };
+                        string jsonString = JsonConvert.SerializeObject(sendData);
+                        return Encoding.UTF8.GetBytes(jsonString);
+                    }
+                    else
+                    {
+                        var sendData = new
+                        {
+                            Header = "Normal",
+                            Timestamp = DateTime.Now.ToString("yyMMddHHmmssfff"),
+                            J1 = currentData[0],
+                            J2 = currentData[1],
+                            J3 = currentData[2],
+                            J4 = currentData[3],
+                            J5 = currentData[4],
+                            J6 = currentData[5],
+                            TrussX = currentData[6],
+                            TrussY = currentData[7],
+                            RobotStatus = "Running",
+                            TrussStatus = "Running"
+                        };
+                        string jsonString = JsonConvert.SerializeObject(sendData);
+                        return Encoding.UTF8.GetBytes(jsonString);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[SED]: 收集发送数据失败");
+                    return new byte[0];
+                }
+            }
+        
+        #endregion
+
         #region 三大处理函数
 
             private IPEndPoint _robotEndpoint; // 机器人端点
@@ -865,7 +1113,7 @@ namespace MagicLittleBox
             LockInitStatus();
             StartDataUpdateThread();
             
-            UdpListener();
+            UdpListener(false);
         }
 
     }

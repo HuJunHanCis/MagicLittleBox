@@ -157,6 +157,9 @@
                         </Border>
                         
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Cursor" Value="Hand"/>
+                            </Trigger>
                             <EventTrigger RoutedEvent="ToggleButton.Checked">
                                 <BeginStoryboard Storyboard="{StaticResource OnChecked}"/>
                             </EventTrigger>
