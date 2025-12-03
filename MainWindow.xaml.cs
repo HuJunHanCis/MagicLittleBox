@@ -879,16 +879,19 @@ namespace MagicLittleBox
             {
                 try
                 {
+                    int sendInterval = 0;
                     // 获取发送频率
-                    string freqText = CheckValidFreq(FreOutRlUe);
-                    if (freqText == null)
+                    Dispatcher.Invoke(() =>
                     {
-                        Log.Error("[SED]: 发送频率不合法，发送线程退出");
-                        return;
-                    }
-
-                    int sendInterval = int.Parse(freqText);
-                    Log.Information("[SED]: 开始发送循环，频率: {Interval}ms", sendInterval);
+                        string freqText = CheckValidFreq(FreOutRlUe);
+                        if (freqText == null)
+                        {
+                            Log.Error("[SED]: 发送频率不合法，发送线程退出");
+                            return;
+                        }
+                        sendInterval = int.Parse(freqText);
+                        Log.Information("[SED]: 开始发送循环，频率: {Interval}ms", sendInterval);
+                    });
 
                     while (!ct.IsCancellationRequested)
                     {
@@ -910,6 +913,11 @@ namespace MagicLittleBox
                             }
                     
                             // 等待指定间隔
+                            if (sendInterval == 0)
+                            {
+                                Log.Error("[SED]: 发送频率为0，发送线程退出");
+                                return;
+                            }
                             await Task.Delay(sendInterval, ct);
                         }
                         catch (OperationCanceledException)
@@ -1013,20 +1021,94 @@ namespace MagicLittleBox
                 }
             }
             
-            private CancellationTokenSource _rlPoseSendCts;
+            // private CancellationTokenSource _rlPoseSendCts;
+            private double _poseJ1;
+            private double _poseJ2;
+            private double _poseJ3;
+            private double _poseJ4;
+            private double _poseJ5;
+            private double _poseJ6;
+            private double _poseTrussX;
+            private double _poseTrussY;
+            private int _poseRobotSteps;
+            private int _poseTrussSteps;
+            
             private void ProcessPoseMessage(dynamic jsonMessage, string timeStamp)
             {
-                
+                try
+                {
+                    int robotIntervalMs = 0;
+                    int trussIntervalMs = 0;
+                    
+                    if (_egmRunning && _robotEndpoint != null && _currentRobotStatus ==3 && _currentTrussStatus ==3)
+                    {
+                        _poseJ1 = (double)jsonMessage.Rax1;
+                        _poseJ2 = (double)jsonMessage.Rax2;
+                        _poseJ3 = (double)jsonMessage.Rax3;
+                        _poseJ4 = (double)jsonMessage.Rax4;
+                        _poseJ5 = (double)jsonMessage.Rax5;
+                        _poseJ6 = (double)jsonMessage.Rax6;
+                        _poseTrussX = (double)jsonMessage.TrussX;
+                        _poseTrussY = (double)jsonMessage.TrussY;
+                        
+                        string robotFreqText = CheckValidFreq(FreRobot);
+                        string trussFreqText = CheckValidFreq(FreTruss);
+                        
+                        if (robotFreqText == null || trussFreqText == null)
+                        {
+                            Log.Warning("[POSE]: 频率设置无效，忽略当前POSE消息");
+                        }
+                        else
+                        {
+                            robotIntervalMs = int.Parse(robotFreqText);
+                            trussIntervalMs = int.Parse(trussFreqText);
+                            _poseRobotSteps = 1050 / robotIntervalMs;
+                            if (_poseRobotSteps <= 0) _poseRobotSteps = 1;
+
+                            _poseTrussSteps = 1050 / trussIntervalMs;
+                            if (_poseTrussSteps <= 0) _poseTrussSteps = 1;
+                        }
+                        
+                        // TODO：调用积分函数ComputeJointDisplacements
+                        double[] robotVelocities = new double[]
+                        {
+                            _poseJ1, _poseJ2, _poseJ3,
+                            _poseJ4, _poseJ5, _poseJ6
+                        };
+                        
+                        List<double[]> robotStepDeltas = ComputeJointDisplacements(
+                            robotVelocities,
+                            _poseRobotSteps,
+                            robotIntervalMs);
+                        
+                        
+                        
+                        // TODO：调用egm发送+plc发送（均异步）
+                        
+                        
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    throw;
+                }
             }
             
             private void ProcessCtrlMessage(dynamic jsonMessage, string timeStamp)
             {
                 try
                 {
-                    if (jsonMessage.Message.ToString() == "STOP")
-                    {
-
-                    }
+                    // if (jsonMessage.Message.ToString() == "STOP")
+                    // {
+                    //
+                    // }
+                    // if (jsonMessage.Message.ToString() == "RESTART")
+                    // {
+                    //
+                    // }
+                    
+                    
                 }
                 catch (Exception ex)
                 {
@@ -1103,9 +1185,6 @@ namespace MagicLittleBox
             }
 
         #endregion
-
-
-
         
         public MainWindow()
         {
