@@ -664,6 +664,12 @@ namespace MagicLittleBox
                                     if (header == "RL" && type == "CONTROL")
                                     {
                                         ProcessCtrlMessage(jsonMessage, jsonMessage.TimeStamp?.ToString());
+                                        Dispatcher.Invoke(() =>
+                                        {
+                                            // 点亮绿灯
+                                            RlConnection.Fill =
+                                                (SolidColorBrush)(new BrushConverter().ConvertFrom("#C94F4F"));
+                                        });
                                     }
                                 }
                             }
@@ -1453,16 +1459,16 @@ namespace MagicLittleBox
             {
                 try
                 {
-                    // if (jsonMessage.Message.ToString() == "STOP")
-                    // {
-                    //
-                    // }
-                    // if (jsonMessage.Message.ToString() == "RESTART")
-                    // {
-                    //
-                    // }
-                    
-                    
+                    if (jsonMessage.Message.ToString() == "STOP")
+                    {
+                        EgmStop(null,null);
+                    }
+                    if (jsonMessage.Message.ToString() == "RESTART")
+                    {
+                        F4Refresh(null,null);
+                        Thread.Sleep(5000);
+                        EgmStart(null,null);
+                    }
                 }
                 catch (Exception ex)
                 {
