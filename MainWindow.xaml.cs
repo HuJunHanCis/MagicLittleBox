@@ -181,6 +181,28 @@ namespace MagicLittleBox
 
                 return null;
             }
+            
+            private bool IsRobotAtHome(double homeTolerance=0.1)
+            {
+                if (_currentEightAxes == null || _currentEightAxes.Length < 6)
+                    return false;
+
+                return Math.Abs(_currentEightAxes[0] - 0) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[1] - 0) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[2] - 0) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[3] - 0) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[4] - 0) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[5] - 0) < homeTolerance;
+            }
+
+            private bool IsTrussAtHome(double homeTolerance=0.1)
+            {
+                if (_currentEightAxes == null || _currentEightAxes.Length < 8)
+                    return false;
+
+                return Math.Abs(_currentEightAxes[6] - 0) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[7] - 0) < homeTolerance;
+            }
 
         #endregion
 
@@ -204,6 +226,7 @@ namespace MagicLittleBox
                 }
                 else
                 {
+                    _virtualTruss.EmergyStop();
                     Log.Information("[RLL]: RL监听已关闭");
                 }
             }
@@ -217,6 +240,10 @@ namespace MagicLittleBox
                         Log.Warning("[EGM]: 已经处于运行状态，忽略重复启动");
                         return;
                     }
+                    
+                    _virtualRobot.RestartSim();
+                    
+                    Thread.Sleep(200);
 
                     Log.Information("[EGM]: 开始启动流程");
 
@@ -230,15 +257,20 @@ namespace MagicLittleBox
                     
                     // 2. 监听成功后再锁 UI
                     LockEgmRunningStatus();
+                    _rlListenerEnabled = true;
 
                     // 3. 启动数据发送线程
                     StartDataSendThread();
+                    
+                   
 
                     // 4. 打开RL监听
                     if (RlListener.IsChecked != true)
                     {
                         RlListener.IsChecked = true;
                     }
+                    
+                    _virtualTruss.EnableBoth();
 
                     _egmRunning = true;
 
@@ -280,6 +312,8 @@ namespace MagicLittleBox
                     _egmRunning = false;
                     _robotEndpoint = null;   // 下次重新建立 EGM 通信时，从头开始
                     
+                    _virtualTruss.EmergyStop();
+                    
                     Log.Information("[EGM]: 停止流程完成");
                 }
                 catch (Exception ex)
@@ -312,6 +346,114 @@ namespace MagicLittleBox
                 
             }
 
+            private async void F3GoHome(object sender, RoutedEventArgs e)
+            {
+                try
+                {
+                    // 1. 关闭 RL 监听并锁定按钮
+                    Dispatcher.Invoke(() =>
+                    {
+                        RlListener.IsChecked = false;
+                        RlListener.IsEnabled = false;
+                    });
+                    _rlListenerEnabled = false;
+
+                    Log.Information("[F3]: 开始八轴回零");
+                    
+                    double[] robotHomeJoints = new double[6] { 0, 0, 0, 0, 0, 0 };
+                    double trussXHome = 0f;
+                    double trussYHome = 0f;
+                    
+                    var robotTask = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                if (_egmRunning && _robotEndpoint != null && _currentRobotStatus == 3)
+                                {
+                                    Log.Information("[F3]: 机器人开始回零");
+                                    while (_currentEightAxes[0]!=0||_currentEightAxes[1]!=0||_currentEightAxes[2]!=0||
+                                           _currentEightAxes[3]!=0||_currentEightAxes[4]!=0||_currentEightAxes[5]!=0)
+                                    {
+                                        await SendJointMessageToRobot(robotHomeJoints);
+                                        Thread.Sleep(50);
+                                    }
+                                    Log.Information("[F3]: 机器人回零完成");
+                                }
+                                else
+                                {
+                                    Log.Warning("[F3]: 机器人不在可回零状态，跳过");
+                                }
+                            }
+                            catch (TaskCanceledException)
+                            {
+                                // 正常：新POSE或EgmStop触发取消
+                                // Log.Debug("[POS]: 发送任务被取消");
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error(ex, "[POS]: 机器人回零过程中发生异常");
+                            }
+                        });
+                    
+                    var trussTask = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            if (_currentTrussStatus == 3)
+                            {
+                                Log.Information("[F3]: 桁架开始回零");
+                                while (_currentEightAxes[6]!=0||_currentEightAxes[7]!=0)
+                                {
+                                    await _virtualTruss.PlcGotoPositionQuick(
+                                        false,
+                                        (float)0,
+                                        (float)0,
+                                        (float)500,   // 较慢的安全速度
+                                        (float)500);
+                                    Thread.Sleep(1000);
+                                }
+                                
+                                Log.Information("[F3]: 桁架回零完成");
+                            }
+                            else
+                            {
+                                Log.Warning("[F3]: 桁架不在可回零状态，跳过");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex, "[POS]: 桁架回零过程中发生异常");
+                        }
+                    });
+                    
+                    try
+                    {
+                        await Task.WhenAll(robotTask, trussTask);
+                        Log.Information("[F3]: 回零任务执行完成");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "[F3]: 等待回零任务时发生异常");
+                    }
+
+                    // 5. 重新启用RL监听
+                    if (IsRobotAtHome() && IsTrussAtHome())
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            RlListener.IsEnabled = true;
+                            // RlListener.IsChecked = true;
+                        });
+                        // _rlListenerEnabled = true;
+                        Log.Information("[F3]: RL监听已重新启用");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[F3]: 八轴回零时发生异常");
+                }
+            }
+
             private void F4Refresh(object sender, RoutedEventArgs e)
             {
                 try
@@ -320,13 +462,19 @@ namespace MagicLittleBox
         
                     // 先停止现有的数据更新线程
                     StopDataUpdateThread();
+                    
+                    EgmStop(sender, e);
+
+                    _virtualTruss.Init();
+                    
+                    _virtualRobot.Restart();
         
                     // 等待一小段时间确保线程完全停止
                     Thread.Sleep(50);
-        
+                    
                     // 重新启动数据更新线程
                     StartDataUpdateThread();
-        
+
                     Log.Information("[F4]: 数据更新线程刷新完成");
                 }
                 catch (Exception ex)
@@ -477,6 +625,7 @@ namespace MagicLittleBox
                             {
                                 string jsonString = Encoding.UTF8.GetString(data);
                                 var jsonMessage = JsonConvert.DeserializeObject<dynamic>(jsonString);
+                                // Console.WriteLine(jsonString);
 
                                 if (jsonMessage?.Header != null)
                                 {
@@ -620,7 +769,8 @@ namespace MagicLittleBox
 
                 _dataUpdateCts = new CancellationTokenSource();
                 var ct = _dataUpdateCts.Token;
-
+                
+                Log.Information("[RDU]: 数据更新任务已正常开始");
                 _dataUpdateTask = Task.Run(async () => await RunDataUpdateLoop(ct));
             }
 
@@ -1033,6 +1183,20 @@ namespace MagicLittleBox
             private int _poseRobotSteps;
             private int _poseTrussSteps;
             
+            private CancellationTokenSource _poseSendCts;
+            
+            private readonly double[][] _axisLimits = 
+            {
+                new double[] { -179, 179 }, // J1 关节
+                new double[] { -89, 69 }, // J2 关节  
+                new double[] { -129, 72 }, // J3 关节
+                new double[] { -169, 169 }, // J4 关节
+                new double[] { -116, 89 }, // J5 关节
+                new double[] { -139, 125 }, // J6 关节
+                new double[] { -650, 4200 },   // 桁架X轴
+                new double[] { -550, 2429 }     // 桁架Y轴
+            };
+            
             private void ProcessPoseMessage(dynamic jsonMessage, string timeStamp)
             {
                 try
@@ -1051,40 +1215,124 @@ namespace MagicLittleBox
                         _poseTrussX = (double)jsonMessage.TrussX;
                         _poseTrussY = (double)jsonMessage.TrussY;
                         
-                        string robotFreqText = CheckValidFreq(FreRobot);
-                        string trussFreqText = CheckValidFreq(FreTruss);
-                        
-                        if (robotFreqText == null || trussFreqText == null)
+                        Dispatcher.Invoke(() =>
                         {
-                            Log.Warning("[POSE]: 频率设置无效，忽略当前POSE消息");
-                        }
-                        else
-                        {
+                            string robotFreqText = CheckValidFreq(FreRobot);
+                            string trussFreqText = CheckValidFreq(FreTruss);
+                
+                            if (robotFreqText == null || trussFreqText == null)
+                            {
+                                Log.Warning("[POSE]: 频率设置无效，忽略当前POSE消息");
+                                return;  // 注意：这个return只退出匿名方法
+                            }
+                
                             robotIntervalMs = int.Parse(robotFreqText);
                             trussIntervalMs = int.Parse(trussFreqText);
-                            _poseRobotSteps = 1050 / robotIntervalMs;
+                            
+                            _poseRobotSteps = (int)Math.Ceiling(1050.0 / robotIntervalMs);
                             if (_poseRobotSteps <= 0) _poseRobotSteps = 1;
 
-                            _poseTrussSteps = 1050 / trussIntervalMs;
+                            _poseTrussSteps = (int)Math.Ceiling(1050.0 / trussIntervalMs);
                             if (_poseTrussSteps <= 0) _poseTrussSteps = 1;
-                        }
+                        });
                         
-                        // TODO：调用积分函数ComputeJointDisplacements
-                        double[] robotVelocities = new double[]
+                        double[] axes = _currentEightAxes;
+                        if (axes == null || axes.Length < 8)
                         {
-                            _poseJ1, _poseJ2, _poseJ3,
-                            _poseJ4, _poseJ5, _poseJ6
-                        };
+                            Log.Warning("[POSE]: 当前八轴数据无效，忽略本次POSE");
+                            return;
+                        }
+
+                        double[] currentAxesSnapshot = new double[8];
+                        Array.Copy(axes, currentAxesSnapshot, 8);
                         
-                        List<double[]> robotStepDeltas = ComputeJointDisplacements(
-                            robotVelocities,
-                            _poseRobotSteps,
-                            robotIntervalMs);
+                        List<double> j1List = ComputeSingleJointDisplacement(currentAxesSnapshot[0], _poseJ1, _poseRobotSteps, robotIntervalMs,_axisLimits[0][0],_axisLimits[0][1]);
+                        List<double> j2List = ComputeSingleJointDisplacement(currentAxesSnapshot[1], _poseJ2, _poseRobotSteps, robotIntervalMs,_axisLimits[1][0],_axisLimits[1][1]);
+                        List<double> j3List = ComputeSingleJointDisplacement(currentAxesSnapshot[2], _poseJ3, _poseRobotSteps, robotIntervalMs,_axisLimits[2][0],_axisLimits[2][1]);
+                        List<double> j4List = ComputeSingleJointDisplacement(currentAxesSnapshot[3], _poseJ4, _poseRobotSteps, robotIntervalMs,_axisLimits[3][0],_axisLimits[3][1]);
+                        List<double> j5List = ComputeSingleJointDisplacement(currentAxesSnapshot[4], _poseJ5, _poseRobotSteps, robotIntervalMs,_axisLimits[4][0],_axisLimits[4][1]);
+                        List<double> j6List = ComputeSingleJointDisplacement(currentAxesSnapshot[5], _poseJ6, _poseRobotSteps, robotIntervalMs,_axisLimits[5][0],_axisLimits[5][1]);
+
+                        // List<double> txList = ComputeSingleJointDisplacement(currentAxesSnapshot[6], _poseTrussX, _poseTrussSteps, trussIntervalMs);
+                        // List<double> tyList = ComputeSingleJointDisplacement(currentAxesSnapshot[7], _poseTrussY, _poseTrussSteps, trussIntervalMs);
+
+                        double trussxTarget = currentAxesSnapshot[6] + 1.05 * _poseTrussX;
+                        if (trussxTarget > _axisLimits[6][1])
+                            trussxTarget =  _axisLimits[6][1];
+                        else if (trussxTarget < _axisLimits[6][0])
+                            trussxTarget = _axisLimits[6][0];
+                        double trussyTarget = currentAxesSnapshot[7] + 1.05 * _poseTrussY;
+                        if (trussxTarget > _axisLimits[7][1])
+                            trussxTarget =  _axisLimits[7][1];
+                        else if (trussxTarget < _axisLimits[7][0])
+                            trussxTarget = _axisLimits[7][0];
                         
+                        // 调用egm发送+plc发送（均异步）
+                        _poseSendCts?.Cancel();
+                        _poseSendCts = new CancellationTokenSource();
+                        var token = _poseSendCts.Token;
                         
-                        
-                        // TODO：调用egm发送+plc发送（均异步）
-                        
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                int robotIndex = 0;
+                                DateTime lastRobotSendTime = DateTime.Now;
+
+                                while (!token.IsCancellationRequested && robotIndex < j1List.Count)
+                                {
+                                    DateTime now = DateTime.Now;
+
+                                    if ((now - lastRobotSendTime).TotalMilliseconds >= robotIntervalMs)
+                                    {
+                                        // 状态检查，防止机器人不在远程运行时还乱发
+                                        if (_egmRunning && _robotEndpoint != null && _currentRobotStatus == 3)
+                                        {
+                                            double[] targetJoints = new double[6];
+                                            targetJoints[0] = j1List[robotIndex];
+                                            targetJoints[1] = j2List[robotIndex];
+                                            targetJoints[2] = j3List[robotIndex];
+                                            targetJoints[3] = j4List[robotIndex];
+                                            targetJoints[4] = j5List[robotIndex];
+                                            targetJoints[5] = j6List[robotIndex];
+
+                                            await SendJointMessageToRobot(targetJoints);
+                                        }
+
+                                        lastRobotSendTime = now;
+                                        robotIndex++;
+                                    }
+
+                                    await Task.Delay(1, token); // 降一点 CPU 占用
+                                }
+                            }
+                            catch (TaskCanceledException)
+                            {
+                                // 正常：新POSE或EgmStop触发取消
+                                // Log.Debug("[POS]: 发送任务被取消");
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error(ex, "[POS]: 机器人发送过程中发生异常");
+                            }
+                        }, token);
+
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await _virtualTruss.PlcGotoPositionQuick(
+                                    false,
+                                    (float)trussxTarget,
+                                    (float)trussyTarget,
+                                    (float)_poseTrussX,   // 速度用当前 pose 里的值
+                                    (float)_poseTrussY);
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error(ex, "[POS]: 桁架发送过程中发生异常");
+                            }
+                        });
                         
                     }
                 }
@@ -1095,6 +1343,112 @@ namespace MagicLittleBox
                 }
             }
             
+            private async Task SendJointMessageToRobot(double[] joints)
+            {
+                if (_robotEndpoint == null || joints.Length != 6) 
+                {
+                    Log.Warning("[EGM发送]: 机器人端点不存在，检查RS是否打开");
+                    return;
+                }
+
+                using (var memoryStream = new MemoryStream())
+                {
+                    try
+                    {
+                        var sensorMessage = new EgmSensor();
+                        CreateJointMessage(sensorMessage, joints);
+                        sensorMessage.WriteTo(memoryStream);
+
+                        var data = memoryStream.ToArray();
+                        await _udpListenerClient.SendAsync(data, data.Length, _robotEndpoint);
+                 
+                        // Log.Debug($"[EGM发送]: 已向 {_robotEndpoint} 发送关节指令");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error($"[EGM发送]: 发送失败: {ex.Message}");
+                    }
+                }
+            }
+            
+            private void CreateJointMessage(EgmSensor message, double[] joints)
+            {
+                var header = new EgmHeader
+                {
+                    Seqno = _egmSequenceNumber++,
+                    Tm = (uint)DateTime.Now.Ticks,
+                    Mtype = EgmHeader.Types.MessageType.MsgtypeCorrection
+                };
+
+                message.Header = header;
+
+                var planned = new EgmPlanned();
+                var egmJoints = new EgmJoints();
+
+                // 添加6个关节值
+                for (int i = 0; i < 6; i++)
+                {
+                    egmJoints.Joints.Add(joints[i]);
+                }
+
+                planned.Joints = egmJoints;
+                message.Planned = planned;
+            }
+            
+            /// <summary>
+            /// 按照给定的规划列表和频率，在 1050ms 内依次发送桁架目标位置（开环可覆写）
+            /// </summary>
+            private async Task SendTrussPoseAsync(
+                List<double> txList,
+                List<double> tyList,
+                int trussIntervalMs)
+            {
+                try
+                {
+                    if (txList == null || tyList == null ||
+                        txList.Count == 0 || tyList.Count == 0)
+                    {
+                        return;
+                    }
+
+                    int trussIndex = 0;
+                    DateTime lastTrussSendTime = DateTime.Now;
+
+                    // 添加 _rlListenerEnabled 检查
+                    while (_egmRunning && _rlListenerEnabled && trussIndex < txList.Count)
+                    {
+                        DateTime now = DateTime.Now;
+
+                        if ((now - lastTrussSendTime).TotalMilliseconds >= trussIntervalMs)
+                        {
+                            if (_currentTrussStatus == 3)
+                            {
+                                double trussX = txList[trussIndex];
+                                double trussY = tyList[trussIndex];
+
+                                await _virtualTruss.PlcGotoPositionQuick(
+                                    false,
+                                    (float)trussX,
+                                    (float)trussY,
+                                    (float)_poseTrussX,   // 仍然用当前 POSE 的速度
+                                    (float)_poseTrussY);
+                            }
+
+                            lastTrussSendTime = now;
+                            trussIndex++;
+                        }
+
+                        // 不用 token，只要 EGM 在跑就继续
+                        await Task.Delay(1);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[POSE发送-桁架]: 发送过程中发生异常");
+                }
+            }
+
+        
             private void ProcessCtrlMessage(dynamic jsonMessage, string timeStamp)
             {
                 try
@@ -1138,6 +1492,30 @@ namespace MagicLittleBox
                         stepDelta[j] = velocities[j] * dt;  // v * dt = Δθ
                     }
                     result.Add(stepDelta);
+                }
+
+                return result;
+            }
+            
+            private List<double> ComputeSingleJointDisplacement(double currentValue, double velocity, int steps, 
+                int intervalMs,double minLimit, double maxLimit)
+            {
+                var result = new List<double>(steps);
+                if (steps <= 0 || intervalMs <= 0)
+                    return result;
+
+                double dt = intervalMs / 1000.0;      // 每步时间（秒）
+                double deltaPerStep = velocity * dt;  // 每步增量
+                double value = currentValue;
+
+                for (int i = 0; i < steps; i++)
+                {
+                    value += deltaPerStep;   // 每一步在上一步基础上往前走
+                    if (value > maxLimit)
+                        value = maxLimit;
+                    else if (value < minLimit)
+                        value = minLimit;
+                    result.Add(value);       // 记录的是“这一时刻的绝对值”
                 }
 
                 return result;
@@ -1189,7 +1567,12 @@ namespace MagicLittleBox
         public MainWindow()
         {
             InitializeComponent();
+
+            _virtualRobot.Init();
+            _virtualTruss.Init();
+            
             LockInitStatus();
+            
             StartDataUpdateThread();
             
             UdpListener(false);

@@ -217,7 +217,7 @@
                                     Height="20" Width="20"
                                     Margin="0"
                                     VerticalAlignment="Center"
-                            >
+                            Click="F3GoHome">
                                 <svgc:SvgViewbox Source="IconStop.svg" 
                                                  Width="13" 
                                                  Height="13"

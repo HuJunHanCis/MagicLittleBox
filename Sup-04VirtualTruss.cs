@@ -110,13 +110,16 @@ namespace MagicLittleBox
         }
         
         // 06 : 仅清除警报
-        public void ResetAlarm()
+        public void ResetAlarm(bool debug=true)
         {
             try
             {
                 _apTrussVirtual.XResetAlarm(true);
                 _apTrussVirtual.YResetAlarm(true);
-                Log.Information("[214]: 清除双轴警报");
+                if (debug)
+                {
+                    Log.Information("[214]: 清除双轴警报");
+                }
             }
             catch (Exception ex)
             {
@@ -425,6 +428,7 @@ namespace MagicLittleBox
         
         // 15.x        
         public Task<bool> PlcGotoPositionQuick(
+            bool debug,
             float xTarget, float yTarget,
             float xSpeed, float ySpeed,
             bool force = true)
@@ -439,7 +443,7 @@ namespace MagicLittleBox
 
                 if (force)
                 {
-                    ResetAlarm();
+                    ResetAlarm(debug);
                     _apTrussVirtual.XEnable(true);
                     _apTrussVirtual.YEnable(true);
                     _apTrussVirtual.XStart(true);

@@ -71,7 +71,7 @@ namespace MagicLittleBox
                 {
                     ControllerInfo controller =  controllers[index];
                     _arRobotVirtual = new ArRobotHelper(controller);
-                    if (!_arRobotVirtual.IsVirtual)
+                    if (_arRobotVirtual.IsVirtual)
                     // if (_arRobotVirtual.IsVirtual)
                     {
                         Log.Information("[213]: 仿真机器人初始化成功");
@@ -109,7 +109,7 @@ namespace MagicLittleBox
                     _arRobotVirtual.Restart();
                     Thread.Sleep(100);
                     // if (_arRobotVirtual.Online && !_arRobotVirtual.IsVirtual)
-                    if (_arRobotVirtual.Online && !_arRobotVirtual.IsVirtual)
+                    if (_arRobotVirtual.Online && _arRobotVirtual.IsVirtual)
                     {
                         Log.Information("[213]: 仿真机器人重启成功");
                         return true;
@@ -135,8 +135,8 @@ namespace MagicLittleBox
                 Log.Information("[213]: 执行仿真机器人软重启（不重启控制器）");
         
                 // 只是重置程序指针和状态，不重启控制器
-                _arRobotVirtual.MotorsOff();
-                Thread.Sleep(100);
+                // _arRobotVirtual.MotorsOff();
+                // Thread.Sleep(100);
                 _arRobotVirtual.ResetProgramPointer();
                 _arRobotVirtual.MotorsOn();
                 _arRobotVirtual.Start();
@@ -583,7 +583,7 @@ namespace MagicLittleBox
                 Thread.Sleep(100);
                 _arRobotVirtual.Restart();
                 Thread.Sleep(100);
-                if (_arRobotVirtual.Online && !_arRobotVirtual.IsVirtual)
+                if (_arRobotVirtual.Online && _arRobotVirtual.IsVirtual)
                 {
                     Log.Information("[213]: 仿真机器人重启成功");
                 }
@@ -619,7 +619,7 @@ namespace MagicLittleBox
                 {
                     ControllerInfo controller =  controllers[index];
                     _arRobotVirtual = new ArRobotHelper(controller);
-                    if (!_arRobotVirtual.IsVirtual)
+                    if (_arRobotVirtual.IsVirtual)
                     {
                         Log.Information("[213]: 仿真机器人初始化成功");
                         _arRobotVirtual.MotorsOn();
