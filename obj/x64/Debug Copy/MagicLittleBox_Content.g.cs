@@ -13,5 +13,6 @@
 [assembly: System.Windows.Resources.AssemblyAssociatedContentFileAttribute("iconhelp.svg")]
 [assembly: System.Windows.Resources.AssemblyAssociatedContentFileAttribute("iconstop.svg")]
 [assembly: System.Windows.Resources.AssemblyAssociatedContentFileAttribute("iconrefresh.svg")]
+[assembly: System.Windows.Resources.AssemblyAssociatedContentFileAttribute("trayicon.ico")]
 
 

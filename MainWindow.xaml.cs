@@ -1268,10 +1268,10 @@ namespace MagicLittleBox
                         else if (trussxTarget < _axisLimits[6][0])
                             trussxTarget = _axisLimits[6][0];
                         double trussyTarget = currentAxesSnapshot[7] + 1.05 * _poseTrussY;
-                        if (trussxTarget > _axisLimits[7][1])
-                            trussxTarget =  _axisLimits[7][1];
-                        else if (trussxTarget < _axisLimits[7][0])
-                            trussxTarget = _axisLimits[7][0];
+                        if (trussyTarget > _axisLimits[7][1])
+                            trussyTarget =  _axisLimits[7][1];
+                        else if (trussyTarget < _axisLimits[7][0])
+                            trussyTarget = _axisLimits[7][0];
                         
                         // 调用egm发送+plc发送（均异步）
                         _poseSendCts?.Cancel();
