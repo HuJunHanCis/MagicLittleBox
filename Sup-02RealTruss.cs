@@ -16,7 +16,7 @@ using PlcHelper;
 
 namespace MagicLittleBox
 {
-    public sealed class SupVirtualTruss : IDisposable
+    public sealed class SupRealTruss : IDisposable
     {
         // 01 : 清理逻辑
         public void Dispose()
@@ -41,8 +41,8 @@ namespace MagicLittleBox
         // 02 : 初始化前的准备工作
         private ApHelper _apTrussVirtual;
         private CancellationTokenSource _apTrussVirtualCts;
-        public static SupVirtualTruss Instance { get; } = new SupVirtualTruss();
-        private SupVirtualTruss()
+        public static SupRealTruss Instance { get; } = new SupRealTruss();
+        private SupRealTruss()
         {
             Log.Information("[214]: 创建仿真控制器实例成功");
         }
@@ -506,7 +506,7 @@ namespace MagicLittleBox
                 XmlDocument doc = new XmlDocument();
                 doc.Load(configFilePath);
                 XmlNode currentConfig = doc.SelectSingleNode("/Configs/Current");
-                string plcIp = currentConfig?.SelectSingleNode("Section1/VirtualPlcIp")?.InnerText.Trim() ?? "";
+                string plcIp = currentConfig?.SelectSingleNode("Section1/TruePlcIp")?.InnerText.Trim() ?? "";
                 Log.Information($"[214]: 读取PLC参数成功: {plcIp}");
                 return plcIp;
             }

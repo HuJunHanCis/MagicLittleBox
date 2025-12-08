@@ -212,6 +212,8 @@ namespace MagicLittleBox
             private bool _rlListenerEnabled = false;
             // EGM 是否处于运行状态
             private bool _egmRunning = false;
+
+            private bool _virtualStateEnabled = true;
             
             private void RlListenerToggle(object sender, RoutedEventArgs e)
             {
@@ -228,6 +230,24 @@ namespace MagicLittleBox
                 {
                     _virtualTruss.EmergyStop();
                     Log.Information("[RLL]: RL监听已关闭");
+                }
+            }
+            
+            private void VirtualStateCheck(object sender, RoutedEventArgs e)
+            {
+                // ToggleButton 本身的状态
+                bool isChecked = IsVirtualBox.IsChecked == true;
+
+                _virtualStateEnabled = isChecked;   // 更新字段（你要求的内容）
+
+                if (isChecked)
+                {
+                    Log.Information("[VIR]: 当前处于虚拟仿真控制状态");
+                }
+                else
+                {
+                    _virtualTruss.EmergyStop();
+                    Log.Information("[VIR]: 当前处于真实物理控制状态");
                 }
             }
 
@@ -1548,6 +1568,8 @@ namespace MagicLittleBox
                 
                 EgmStartButton.IsEnabled = true;
                 EgmStopButton.IsEnabled = false;
+                
+                IsVirtualBox.IsEnabled = true;
             }
             private void LockEgmRunningStatus()
             {
@@ -1566,6 +1588,8 @@ namespace MagicLittleBox
                 
                 EgmStartButton.IsEnabled = false;
                 EgmStopButton.IsEnabled = true;
+                
+                IsVirtualBox.IsEnabled = false;
             }
 
         #endregion

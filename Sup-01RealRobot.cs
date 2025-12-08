@@ -18,7 +18,7 @@ using ABB.Robotics.Controllers.RapidDomain;
 
 namespace MagicLittleBox
 {
-    public sealed class SupVirtualRobot : IDisposable
+    public sealed class SupRealRobot : IDisposable
     {
         // 01 : 清理逻辑
         public void Dispose()
@@ -30,22 +30,22 @@ namespace MagicLittleBox
                     _arRobotVirtual = null;
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
-                    Log.Information("[213]: 已释放仿真机器人实例");
+                    Log.Information("[213]: 已释放真实机器人实例");
                 }
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[213]: 释放仿真机器人资源异常");
+                Log.Error(ex, "[213]: 释放真实机器人资源异常");
             }
         }
         
         // 02 : 初始化前的准备工作
         private ArRobotHelper _arRobotVirtual;
         private CancellationTokenSource _arRobotVirtualCts;
-        public static SupVirtualRobot Instance { get; } = new SupVirtualRobot();
-        private SupVirtualRobot()
+        public static SupRealRobot Instance { get; } = new SupRealRobot();
+        private SupRealRobot()
         {
-            Log.Information("[213]: 创建仿真机器人实例成功");
+            Log.Information("[213]: 创建真实机器人实例成功");
         }
         
         // 03 : 初始化
@@ -55,7 +55,7 @@ namespace MagicLittleBox
             {
                 if (_arRobotVirtual != null && _arRobotVirtual.Online)
                 {
-                    Log.Information("[213]: 仿真机器人已存在，跳过初始化");
+                    Log.Information("[213]: 真实机器人已存在，跳过初始化");
                     return true;
                 }
                 NetworkScanner scanner = new NetworkScanner();
@@ -63,7 +63,7 @@ namespace MagicLittleBox
                 var controllers = scanner.Controllers;
                 if (controllers == null || controllers.Count == 0)
                 {
-                    Log.Information("[213]: 未能扫描到任何仿真机器人控制器");
+                    Log.Information("[213]: 未能扫描到任何真实机器人控制器");
                     return false;
                 }
                 int index = 0;
@@ -71,10 +71,10 @@ namespace MagicLittleBox
                 {
                     ControllerInfo controller =  controllers[index];
                     _arRobotVirtual = new ArRobotHelper(controller);
-                    if (_arRobotVirtual.IsVirtual)
+                    if (!_arRobotVirtual.IsVirtual)
                     // if (_arRobotVirtual.IsVirtual)
                     {
-                        Log.Information("[213]: 仿真机器人初始化成功");
+                        Log.Information("[213]: 真实机器人初始化成功");
                         _arRobotVirtual.MotorsOn();
                         _arRobotVirtual.ResetProgramPointer();
                         _arRobotVirtual.Start();
@@ -86,12 +86,12 @@ namespace MagicLittleBox
                     Thread.Sleep(100);
                     index++;
                 }
-                Log.Information("[213]: 未能在当前网段内寻找到仿真机器人");
+                Log.Information("[213]: 未能在当前网段内寻找到真实机器人");
                 return false;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[213]: 初始化仿真机器人过程中出现异常");
+                Log.Error(ex, "[213]: 初始化真实机器人过程中出现异常");
                 return false;
             }
         }
@@ -103,26 +103,26 @@ namespace MagicLittleBox
             {
                 if (_arRobotVirtual != null && _arRobotVirtual.Online)
                 {
-                    Log.Information("[213]: 强制仿真机器人下电重启");
+                    Log.Information("[213]: 强制真实机器人下电重启");
                     _arRobotVirtual.MotorsOff();
                     Thread.Sleep(100);
                     _arRobotVirtual.Restart();
                     Thread.Sleep(100);
-                    // if (_arRobotVirtual.Online && !_arRobotVirtual.IsVirtual)
-                    if (_arRobotVirtual.Online && _arRobotVirtual.IsVirtual)
+                    if (_arRobotVirtual.Online && !_arRobotVirtual.IsVirtual)
+                    // if (_arRobotVirtual.Online && _arRobotVirtual.IsVirtual)
                     {
-                        Log.Information("[213]: 仿真机器人重启成功");
+                        Log.Information("[213]: 真实机器人重启成功");
                         return true;
                     }
-                    Log.Warning("[213]: 仿真机器人重启后状态异常");
+                    Log.Warning("[213]: 真实机器人重启后状态异常");
                     return false;
                 }
-                Log.Information("[213]: 未检测到仿真机器人实例，调用初始化函数来重启");
+                Log.Information("[213]: 未检测到真实机器人实例，调用初始化函数来重启");
                 return Init();
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[213]: 重启仿真机器人时发生异常");
+                Log.Error(ex, "[213]: 重启真实机器人时发生异常");
                 return false;
             }
         }
@@ -132,7 +132,7 @@ namespace MagicLittleBox
         {
             try
             {
-                Log.Information("[213]: 执行仿真机器人软重启（不重启控制器）");
+                Log.Information("[213]: 执行真实机器人软重启（不重启控制器）");
         
                 // 只是重置程序指针和状态，不重启控制器
                 // _arRobotVirtual.MotorsOff();
@@ -141,12 +141,12 @@ namespace MagicLittleBox
                 _arRobotVirtual.MotorsOn();
                 _arRobotVirtual.Start();
         
-                Log.Information("[213]: 仿真机器人软重启成功");
+                Log.Information("[213]: 真实机器人软重启成功");
                 return true;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[213]: 重启仿真机器人时发生异常");
+                Log.Error(ex, "[213]: 重启真实机器人时发生异常");
                 return Init(); // 如果软重启失败，尝试重新初始化
             }
         }
@@ -158,17 +158,17 @@ namespace MagicLittleBox
             {
                 if (_arRobotVirtual == null || !_arRobotVirtual.Online)
                 {
-                    Log.Warning("[213]: 电机上电失败，仿真机器人不在线");
+                    Log.Warning("[213]: 电机上电失败，真实机器人不在线");
                     return false;
                 }
                 _arRobotVirtual.ResetProgramPointer();
                 _arRobotVirtual.MotorsOn();
-                Log.Information("[213]: 仿真机器人重置指针并上电完毕");
+                Log.Information("[213]: 真实机器人重置指针并上电完毕");
                 return true;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[213]: 仿真机器人使能失败");
+                Log.Error(ex, "[213]: 真实机器人使能失败");
                 return false;
             }
         }
@@ -182,11 +182,11 @@ namespace MagicLittleBox
                 _arRobotVirtual.MotorsOff();
                 _arRobotVirtual.Stop();
                 _arRobotVirtual.SetInstructionCode(AbbInstructionCode.DoNothing);
-                Log.Information("[213]: 执行仿真机器人急停");
+                Log.Information("[213]: 执行真实机器人急停");
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[213]: 仿真机器人急停时异常");
+                Log.Error(ex, "[213]: 真实机器人急停时异常");
             }
         }
         
@@ -196,11 +196,11 @@ namespace MagicLittleBox
             try
             {
                 _arRobotVirtual.Stop();
-                Log.Information("[213]: 仿真机器人暂停动作");
+                Log.Information("[213]: 真实机器人暂停动作");
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[213]: 仿真机器人暂停时发生异常");
+                Log.Error(ex, "[213]: 真实机器人暂停时发生异常");
             }
         }
         
@@ -210,11 +210,11 @@ namespace MagicLittleBox
             try
             {
                 _arRobotVirtual.Start();
-                Log.Information("[213]: 仿真机器人恢复动作");
+                Log.Information("[213]: 真实机器人恢复动作");
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[213]: 仿真机器人恢复时发生异常");
+                Log.Error(ex, "[213]: 真实机器人恢复时发生异常");
             }
         }
         
@@ -364,7 +364,7 @@ namespace MagicLittleBox
 
                 if (_arRobotVirtual == null || !_arRobotVirtual.Online)
                 {
-                    Log.Warning("[213]: 仿真机器人未连接，无法执行移动");
+                    Log.Warning("[213]: 真实机器人未连接，无法执行移动");
                     return false;
                 }
                 
@@ -429,7 +429,7 @@ namespace MagicLittleBox
 
                 if (_arRobotVirtual == null || !_arRobotVirtual.Online)
                 {
-                    Log.Warning("[213]: 仿真机器人未连接，无法执行移动");
+                    Log.Warning("[213]: 真实机器人未连接，无法执行移动");
                     return false;
                 }
                 
@@ -491,12 +491,12 @@ namespace MagicLittleBox
                     Log.Information("[213]: 机器人刷新，重置指针并上电");
                     return true;
                 }
-                Log.Information("[213]: 未检测到仿真机器人实例，调用初始化函数来刷新");
+                Log.Information("[213]: 未检测到真实机器人实例，调用初始化函数来刷新");
                 return Init();
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "[213]: 仿真机器人刷新时发生异常");
+                Log.Warning(ex, "[213]: 真实机器人刷新时发生异常");
                 return false;
             }
         }
@@ -557,7 +557,7 @@ namespace MagicLittleBox
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[213]: 仿真机器人发送坐标系时异常");
+                Log.Error(ex, "[213]: 真实机器人发送坐标系时异常");
             }
         }
 
@@ -578,14 +578,14 @@ namespace MagicLittleBox
         {
             try
             {
-                Log.Information("[213]: 强制仿真机器人下电重启");
+                Log.Information("[213]: 强制真实机器人下电重启");
                 _arRobotVirtual.MotorsOff();
                 Thread.Sleep(100);
                 _arRobotVirtual.Restart();
                 Thread.Sleep(100);
-                if (_arRobotVirtual.Online && _arRobotVirtual.IsVirtual)
+                if (_arRobotVirtual.Online && !_arRobotVirtual.IsVirtual)
                 {
-                    Log.Information("[213]: 仿真机器人重启成功");
+                    Log.Information("[213]: 真实机器人重启成功");
                 }
                 Thread.Sleep(100);
                 _arRobotVirtual.ResetMovingCompletedFlag();
@@ -594,7 +594,7 @@ namespace MagicLittleBox
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[213]: 重启仿真机器人时发生异常");
+                Log.Error(ex, "[213]: 重启真实机器人时发生异常");
             }
         }
         public bool NewInit()
@@ -611,7 +611,7 @@ namespace MagicLittleBox
                 var controllers = scanner.Controllers;
                 if (controllers == null || controllers.Count == 0)
                 {
-                    Log.Information("[213]: 未能扫描到任何仿真机器人控制器");
+                    Log.Information("[213]: 未能扫描到任何真实机器人控制器");
                     return false;
                 }
                 int index = 0;
@@ -619,9 +619,9 @@ namespace MagicLittleBox
                 {
                     ControllerInfo controller =  controllers[index];
                     _arRobotVirtual = new ArRobotHelper(controller);
-                    if (_arRobotVirtual.IsVirtual)
+                    if (!_arRobotVirtual.IsVirtual)
                     {
-                        Log.Information("[213]: 仿真机器人初始化成功");
+                        Log.Information("[213]: 真实机器人初始化成功");
                         _arRobotVirtual.MotorsOn();
                         _arRobotVirtual.ResetProgramPointer();
                         _arRobotVirtual.Start();
@@ -633,12 +633,12 @@ namespace MagicLittleBox
                     Thread.Sleep(100);
                     index++;
                 }
-                Log.Information("[213]: 未能在当前网段内寻找到仿真机器人");
+                Log.Information("[213]: 未能在当前网段内寻找到真实机器人");
                 return false;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "[213]: 初始化仿真机器人过程中出现异常");
+                Log.Error(ex, "[213]: 初始化真实机器人过程中出现异常");
                 return false;
             }
         }

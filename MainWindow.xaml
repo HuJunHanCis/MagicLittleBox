@@ -278,14 +278,23 @@
                                Margin="5 1" Background="#ABABAB" />
                     
                     <StackPanel Grid.Row="7" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <CheckBox VerticalAlignment="Center" Margin="0 1 0 0" x:Name="IsVirtualBox" Click="VirtualStateCheck"/>
+                        <TextBlock Width="2"/>
+                        <TextBlock Text="虚拟"
+                                   FontSize="13"
+                                   TextAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   Width="30"
+                        />
+                        <TextBlock Width="5"/>
                         <!-- 第一个块：文本标签 -->
-                        <TextBlock Text="当前UDP服务监听端口"
-                            FontSize="12"
+                        <TextBlock Text="监听服务端口"
+                            FontSize="13"
                             TextAlignment="Center"
                             VerticalAlignment="Center"
-                            Width="130"
+                            Width="90"
                         />
-                        <TextBlock Width="10"/>
+                        <TextBlock Width="2"/>
                         <TextBox Text="22327"
                                  Width="55"
                                  VerticalContentAlignment="Center"

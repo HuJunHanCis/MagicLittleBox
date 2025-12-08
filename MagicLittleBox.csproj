@@ -142,6 +142,8 @@
         <Compile Include="backup.cs">
           <DependentUpon>MainWindow.xaml</DependentUpon>
         </Compile>
+        <Compile Include="Sup-01RealRobot.cs" />
+        <Compile Include="Sup-02RealTruss.cs" />
         <Compile Include="Sup-03VirtualRobot.cs" />
         <Compile Include="Sup-04VirtualTruss.cs" />
         <Compile Include="backup-20251117完整版.cs">
