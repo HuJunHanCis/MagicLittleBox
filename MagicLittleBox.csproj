@@ -139,8 +139,14 @@
         <Compile Include="backup-20251124最新版.cs">
           <DependentUpon>MainWindow.xaml</DependentUpon>
         </Compile>
+        <Compile Include="backup-20251208稳定版.cs">
+          <DependentUpon>MainWindow.xaml</DependentUpon>
+        </Compile>
         <Compile Include="backup.cs">
           <DependentUpon>MainWindow.xaml</DependentUpon>
+        </Compile>
+        <Compile Include="DockWindow.xaml.cs">
+          <DependentUpon>DockWindow.xaml</DependentUpon>
         </Compile>
         <Compile Include="Sup-01RealRobot.cs" />
         <Compile Include="Sup-02RealTruss.cs" />
@@ -149,6 +155,7 @@
         <Compile Include="backup-20251117完整版.cs">
           <DependentUpon>MainWindow.xaml</DependentUpon>
         </Compile>
+        <Page Include="DockWindow.xaml" />
         <Page Include="MainWindow.xaml">
             <Generator>MSBuild:Compile</Generator>
             <SubType>Designer</SubType>

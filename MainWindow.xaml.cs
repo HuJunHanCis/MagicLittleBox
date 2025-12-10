@@ -40,6 +40,10 @@ namespace MagicLittleBox
         private readonly SupVirtualRobot _virtualRobot = SupVirtualRobot.Instance;
         private readonly SupVirtualTruss _virtualTruss = SupVirtualTruss.Instance;
         
+        // 真实实体实例化
+        private readonly SupRealRobot _realRobot = SupRealRobot.Instance;
+        private readonly SupRealTruss _realTruss = SupRealTruss.Instance;
+        
         // 警示四色
         private static readonly SolidColorBrush BrushRed = new SolidColorBrush(Color.FromArgb(0xFF, 0xC9, 0x4F, 0x4F));
         private static readonly SolidColorBrush BrushYel = new SolidColorBrush(Color.FromArgb(0xFF, 0xD9, 0xB7, 0x2B));
@@ -55,6 +59,7 @@ namespace MagicLittleBox
                     DragMove();
                 }
             }
+            
             protected override void OnPreviewMouseDown(MouseButtonEventArgs e)
             {
                 var element = FocusManager.GetFocusedElement(this);
@@ -63,6 +68,22 @@ namespace MagicLittleBox
                     FocusManager.SetFocusedElement(this, this);
                 }
                 base.OnPreviewMouseDown(e);
+            }
+            
+            private void UpdateDockWindowPosition()
+            {
+                if (_dockWindow == null || !_dockWindow.IsVisible) return;
+
+                // 主窗口的屏幕坐标
+                double mainLeft = Left;
+                double mainTop = Top;
+                double mainWidth = ActualWidth;
+                double mainHeight = ActualHeight;
+
+                // 让挂窗紧贴主窗口右侧
+                _dockWindow.Left = mainLeft + mainWidth - 5;
+                _dockWindow.Top = mainTop;
+                _dockWindow.Height = mainHeight; // 高度跟主窗口保持一致
             }
 
         #endregion
@@ -182,6 +203,7 @@ namespace MagicLittleBox
                 return null;
             }
             
+            // 4. 检查机器人是否回零
             private bool IsRobotAtHome(double homeTolerance=0.1)
             {
                 if (_currentEightAxes == null || _currentEightAxes.Length < 6)
@@ -195,6 +217,7 @@ namespace MagicLittleBox
                        Math.Abs(_currentEightAxes[5] - 0) < homeTolerance;
             }
 
+            // 5. 检查桁架是否回零
             private bool IsTrussAtHome(double homeTolerance=0.1)
             {
                 if (_currentEightAxes == null || _currentEightAxes.Length < 8)
@@ -214,6 +237,8 @@ namespace MagicLittleBox
             private bool _egmRunning = false;
 
             private bool _virtualStateEnabled = true;
+            
+            private DockWindow _dockWindow;
             
             private void RlListenerToggle(object sender, RoutedEventArgs e)
             {
@@ -246,55 +271,132 @@ namespace MagicLittleBox
                 }
                 else
                 {
-                    _virtualTruss.EmergyStop();
                     Log.Information("[VIR]: 当前处于真实物理控制状态");
                 }
             }
 
+            private void DockWindowOpen(object sender, RoutedEventArgs e)
+            {
+                // 第一次点击：创建并显示
+                if (_dockWindow == null)
+                {
+                    _dockWindow = new DockWindow
+                    {
+                        Owner = this   // 设为 Owner，可以跟随最小化等
+                    };
+
+                    _dockWindow.Closed += (s, args) => _dockWindow = null;
+                    _dockWindow.Show();
+                    UpdateDockWindowPosition();
+                }
+                else
+                {
+                    // 再次点击：如果在，就在 显示/隐藏 之间切换
+                    if (_dockWindow.IsVisible)
+                    {
+                        _dockWindow.Hide();
+                    }
+                    else
+                    {
+                        _dockWindow.Show();
+                        UpdateDockWindowPosition();
+                    }
+                }
+            }
+            
             private void EgmStart(object sender, RoutedEventArgs e)
             {
                 try
                 {
-                    if (_egmRunning)
+                    if (_virtualStateEnabled)
                     {
-                        Log.Warning("[EGM]: 已经处于运行状态，忽略重复启动");
-                        return;
-                    }
+                        Log.Information("[VIR]: 使用虚拟仿真控制状态");
+                        if (_egmRunning)
+                        {
+                            Log.Warning("[EGM]: 已经处于运行状态，忽略重复启动");
+                            return;
+                        }
                     
-                    _virtualRobot.RestartSim();
+                        _virtualRobot.RestartSim();
                     
-                    Thread.Sleep(200);
+                        Thread.Sleep(200);
 
-                    Log.Information("[EGM]: 开始启动流程");
+                        Log.Information("[EGM]: 开始启动流程");
 
-                    // 1. 确保 UDP 监听已启动（如果端口无效，会在内部弹窗并返回）
-                    UdpListener();
-                    if (_udpListenerClient == null)
-                    {
-                        Log.Error("[EGM]: UDP 监听未成功启动，EGM 启动中止");
-                        return;
-                    }
+                        // 1. 确保 UDP 监听已启动（如果端口无效，会在内部弹窗并返回）
+                        UdpListener();
+                        if (_udpListenerClient == null)
+                        {
+                            Log.Error("[EGM]: UDP 监听未成功启动，EGM 启动中止");
+                            return;
+                        }
                     
-                    // 2. 监听成功后再锁 UI
-                    LockEgmRunningStatus();
-                    _rlListenerEnabled = true;
+                        // 2. 监听成功后再锁 UI
+                        LockEgmRunningStatus();
+                        _rlListenerEnabled = true;
 
-                    // 3. 启动数据发送线程
-                    StartDataSendThread();
+                        // 3. 启动数据发送线程
+                        StartDataSendThread();
                     
                    
 
-                    // 4. 打开RL监听
-                    if (RlListener.IsChecked != true)
-                    {
-                        RlListener.IsChecked = true;
-                    }
+                        // 4. 打开RL监听
+                        if (RlListener.IsChecked != true)
+                        {
+                            RlListener.IsChecked = true;
+                        }
                     
-                    _virtualTruss.EnableBoth();
+                        _virtualTruss.EnableBoth();
 
-                    _egmRunning = true;
+                        _egmRunning = true;
 
-                    Log.Information("[EGM]: 启动流程完成");
+                        Log.Information("[EGM]: 启动流程完成");
+                    }
+
+                    else
+                    {
+                        Log.Information("[VIR]: 使用真实物理控制状态");
+                        if (_egmRunning)
+                        {
+                            Log.Warning("[EGM]: 已经处于运行状态，忽略重复启动");
+                            return;
+                        }
+                    
+                        _virtualRobot.RestartSim();
+                    
+                        Thread.Sleep(200);
+
+                        Log.Information("[EGM]: 开始启动流程");
+
+                        // 1. 确保 UDP 监听已启动（如果端口无效，会在内部弹窗并返回）
+                        UdpListener();
+                        if (_udpListenerClient == null)
+                        {
+                            Log.Error("[EGM]: UDP 监听未成功启动，EGM 启动中止");
+                            return;
+                        }
+                    
+                        // 2. 监听成功后再锁 UI
+                        LockEgmRunningStatus();
+                        _rlListenerEnabled = true;
+
+                        // 3. 启动数据发送线程
+                        StartDataSendThread();
+                    
+                   
+
+                        // 4. 打开RL监听
+                        if (RlListener.IsChecked != true)
+                        {
+                            RlListener.IsChecked = true;
+                        }
+                    
+                        _virtualTruss.EnableBoth();
+
+                        _egmRunning = true;
+
+                        Log.Information("[EGM]: 启动流程完成");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -646,6 +748,7 @@ namespace MagicLittleBox
                                 string jsonString = Encoding.UTF8.GetString(data);
                                 var jsonMessage = JsonConvert.DeserializeObject<dynamic>(jsonString);
                                 // Console.WriteLine(jsonString);
+                                _dockWindow?.AppendLog(jsonString);
 
                                 if (jsonMessage?.Header != null)
                                 {
@@ -873,8 +976,12 @@ namespace MagicLittleBox
                                 AbbStatusText.Text = robotText;
                                 AbbStatusText.Foreground = robotColor;
 
+                                AbbStatus.Header = $"ABB | {robotText}";
+
                                 PlcStatusText.Text = plcText;
                                 PlcStatusText.Foreground = plcColor;
+                                
+                                PlcStatus.Header = $"PLC | {plcText}";
                             });
                         }
                         catch
@@ -1606,6 +1713,9 @@ namespace MagicLittleBox
             StartDataUpdateThread();
             
             UdpListener(false);
+            
+            LocationChanged += (_, __) => UpdateDockWindowPosition();
+            
         }
 
     }

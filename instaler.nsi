@@ -1,7 +1,7 @@
 ﻿Unicode true
 
 !define APP_NAME     "MagicLittleBox"
-!define VERSION      "0.2.2"
+!define VERSION      "0.2.5"
 !define INSTALL_DIR  "$PROGRAMFILES\${APP_NAME}"
 !define SOURCE_DIR   "W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\bin\x64\Debug Copy"
 !define SOURCE_EXE   "MagicLittleBox.exe"

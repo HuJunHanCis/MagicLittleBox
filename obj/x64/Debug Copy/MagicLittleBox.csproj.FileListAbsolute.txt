@@ -76,3 +76,5 @@ W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\obj\x64\Debug Copy\MagicLit.D733F513.Up2Dat
 W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\obj\x64\Debug Copy\MagicLittleBox.exe
 W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\obj\x64\Debug Copy\MagicLittleBox.pdb
 W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\bin\x64\Debug Copy\Trayicon.ico
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\obj\x64\Debug Copy\DockWindow.g.cs
+W:\Cisdi\01ZJ\EgmTest\MagicLittleBox\obj\x64\Debug Copy\DockWindow.baml
