@@ -55,7 +55,7 @@
                                    Width="75"
                         />
                         <!-- 第二个块：第一个TextBox -->
-                        <TextBox Text="127.0.0.1"
+                        <TextBox Text="172.16.101.6"
                                  Width="100"
                                  VerticalContentAlignment="Center"
                                  HorizontalContentAlignment="Center"
@@ -117,7 +117,7 @@
                                    Width="75"
                         />
                         <!-- 第二个块：第一个TextBox -->
-                        <TextBox Text="127.0.0.1"
+                        <TextBox Text="172.16.101.4"
                                  Width="100"
                                  VerticalContentAlignment="Center"
                                  HorizontalContentAlignment="Center"
@@ -129,7 +129,7 @@
                         />
                         <TextBlock Width="2"/>
                         <!-- 第三个块：第二个TextBox -->
-                        <TextBox Text="#####"
+                        <TextBox Text="8889"
                                  Width="48"
                                  VerticalContentAlignment="Center"
                                  HorizontalContentAlignment="Center"
@@ -362,11 +362,11 @@
             
             <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="5 0 0 0">
                 
-                <TextBlock Text="监听RL模块" 
+                <TextBlock Text="实时监听模块" 
                            FontSize="14"
                            TextAlignment="Center"
                            VerticalAlignment="Center"
-                           Width="100"
+                           Width="103"
                 />
                 <ToggleButton Style="{StaticResource ModernToggleSwitch}" 
                               IsChecked="False"
