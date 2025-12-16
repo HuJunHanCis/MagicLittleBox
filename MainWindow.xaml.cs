@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -10,26 +9,11 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using Abb.Egm;
 using Newtonsoft.Json;
-
-using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
-using Abb.Egm;
 using Serilog;
 using System.IO;
-using System.Net;
-using System.Text;
-using System.Windows;
 using Google.Protobuf;
-using Newtonsoft.Json;
-using System.Threading;
-using System.Net.Sockets;
-using System.Runtime.Remoting.Messaging;
 using System.Windows.Media;
-using System.Windows.Input;
-using System.Threading.Tasks;
-using System.Windows.Controls;
 using System.Text.RegularExpressions;
 
 namespace MagicLittleBox
@@ -483,8 +467,8 @@ namespace MagicLittleBox
                     Log.Information("[F3]: 开始八轴回零");
                     
                     double[] robotHomeJoints = new double[6] { 0, 0, 0, 0, 0, 0 };
-                    double trussXHome = 0f;
-                    double trussYHome = 0f;
+                    // double trussXHome = 0f;
+                    // double trussYHome = 0f;
                     
                     var robotTask = Task.Run(async () =>
                         {
@@ -748,6 +732,7 @@ namespace MagicLittleBox
                                 string jsonString = Encoding.UTF8.GetString(data);
                                 var jsonMessage = JsonConvert.DeserializeObject<dynamic>(jsonString);
                                 // Console.WriteLine(jsonString);
+                                _dockWindow?.AppendLog($"----------------");
                                 _dockWindow?.AppendLog(jsonString);
 
                                 if (jsonMessage?.Header != null)
@@ -793,6 +778,11 @@ namespace MagicLittleBox
                                             RlConnection.Fill =
                                                 (SolidColorBrush)(new BrushConverter().ConvertFrom("#C94F4F"));
                                         });
+                                    }
+
+                                    if (header == "Crush")
+                                    {
+                                        _uesaynocrush = false;
                                     }
                                 }
                             }
@@ -887,6 +877,7 @@ namespace MagicLittleBox
 
             // 当前八轴数据：J1~J6 + TrussX + TrussY
             private double[] _currentEightAxes = new double[8];
+            private double[] _currentEular = new double[7];
             private int _currentRobotStatus;
             private int _currentTrussStatus;
 
@@ -911,6 +902,7 @@ namespace MagicLittleBox
                     while (!ct.IsCancellationRequested)
                     {
                         double[] eightAxes = new double[8];
+                        double[] eularangle = new double[7];
 
                         // 1. 获取状态码
                         _currentRobotStatus = _virtualRobot.GetVirRobotStatus_Full();
@@ -928,10 +920,18 @@ namespace MagicLittleBox
                             eightAxes[3] = 0;
                             eightAxes[4] = 0;
                             eightAxes[5] = 0;
+
+                            eularangle[0] = 0;
+                            eularangle[1] = 0;
+                            eularangle[2] = 0;
+                            eularangle[3] = 0;
+                            eularangle[4] = 0;
+                            eularangle[5] = 0;
+                            eularangle[6] = 0;
                         }
                         else
                         {
-                            var (_, _, _, _, _, _, _,
+                            var (x, y, z, qw, qx, qy, qz,
                                 j1, j2, j3, j4, j5, j6) = _virtualRobot.GetCurrentPose();
 
                             eightAxes[0] = j1;
@@ -940,6 +940,14 @@ namespace MagicLittleBox
                             eightAxes[3] = j4;
                             eightAxes[4] = j5;
                             eightAxes[5] = j6;
+                            
+                            eularangle[0] = x;
+                            eularangle[1] = y;
+                            eularangle[2] = z;
+                            eularangle[3] = qw;
+                            eularangle[4] = qx;
+                            eularangle[5] = qy;
+                            eularangle[6] = qz;
                         }
 
                         // 3. 获取桁架当前坐标
@@ -957,6 +965,7 @@ namespace MagicLittleBox
 
                         // 4. 写入当前八轴状态
                         _currentEightAxes = eightAxes;
+                        _currentEular = eularangle;
 
                         // 5. 更新界面显示
                         try
@@ -1230,9 +1239,10 @@ namespace MagicLittleBox
                 {
                     // 收集当前八轴数据
                     var currentData = _currentEightAxes;
+                    var currentEulur = _currentEular;
                     
                     // 2. 获取机器人当前关节
-                    if (_currentRobotStatus == -1 || _currentTrussStatus == -1)
+                    if (_currentRobotStatus != 3 || _currentTrussStatus != 3 || !_uesaynocrush)
                     {
                         // 根据具体状态设置对应的状态文本
                         string robotStatusText = _currentRobotStatus == -1 ? "Stopped" : "Running";
@@ -1261,10 +1271,19 @@ namespace MagicLittleBox
                             J6 = currentData[5],
                             TrussX = currentData[6],
                             TrussY = currentData[7],
+                            RobotX = _currentEular[0],
+                            RobotY = _currentEular[1],
+                            RobotZ = _currentEular[2],
+                            Qw = _currentEular[3],
+                            Qx = _currentEular[4],
+                            Qy = _currentEular[5],
+                            Qz = _currentEular[6],
                             RobotStatus = "Running",
                             TrussStatus = "Running"
                         };
                         string jsonString = JsonConvert.SerializeObject(sendData);
+                        _dockWindow?.AppendLog($"----------------");
+                        _dockWindow?.AppendLog($"[SED]: {jsonString}");
                         return Encoding.UTF8.GetBytes(jsonString);
                     }
                 }
@@ -1278,6 +1297,8 @@ namespace MagicLittleBox
         #endregion
 
         #region 三大处理函数
+        
+            private bool _uesaynocrush = true;
 
             private IPEndPoint _robotEndpoint; // 机器人端点
             private uint _egmSequenceNumber; // EGM序列号
@@ -1337,7 +1358,7 @@ namespace MagicLittleBox
                     int robotIntervalMs = 0;
                     int trussIntervalMs = 0;
                     
-                    if (_egmRunning && _robotEndpoint != null && _currentRobotStatus ==3 && _currentTrussStatus ==3)
+                    if (_egmRunning && _robotEndpoint != null && _currentRobotStatus ==3 && _currentTrussStatus ==3 && _uesaynocrush)
                     {
                         _poseJ1 = (double)jsonMessage.Rax1;
                         _poseJ2 = (double)jsonMessage.Rax2;
@@ -1580,21 +1601,35 @@ namespace MagicLittleBox
                     Log.Error(ex, "[POSE发送-桁架]: 发送过程中发生异常");
                 }
             }
-
-        
-            private void ProcessCtrlMessage(dynamic jsonMessage, string timeStamp)
+            
+            private async Task ProcessCtrlMessage(dynamic jsonMessage, string timeStamp)
             {
                 try
                 {
                     if (jsonMessage.Message.ToString() == "STOP")
                     {
-                        EgmStop(null,null);
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            F4Refresh(this, null);
+                        });
+                        _uesaynocrush = true;
                     }
                     if (jsonMessage.Message.ToString() == "RESTART")
                     {
-                        F4Refresh(null,null);
-                        Thread.Sleep(5000);
-                        EgmStart(null,null);
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            F4Refresh(this, null);
+                        });
+            
+                        await Task.Delay(15500);
+                        
+                        _uesaynocrush = true;
+            
+                        // EgmStart 也需要在UI线程执行
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            EgmStart(this, null);
+                        });
                     }
                 }
                 catch (Exception ex)
