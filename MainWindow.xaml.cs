@@ -1318,17 +1318,17 @@ namespace MagicLittleBox
             
             private CancellationTokenSource _poseSendCts;
             
-            private readonly double[][] _axisLimits = 
-            {
-                new double[] { -179, 179 }, // J1 关节
-                new double[] { -89, 69 }, // J2 关节  
-                new double[] { -129, 72 }, // J3 关节
-                new double[] { -169, 169 }, // J4 关节
-                new double[] { -116, 89 }, // J5 关节
-                new double[] { -139, 125 }, // J6 关节
-                new double[] { -650, 4200 },   // 桁架X轴
-                new double[] { -550, 2429 }     // 桁架Y轴
-            };
+            // private readonly double[][] _axisLimits = 
+            // {
+            //     new double[] { -179, 179 }, // J1 关节
+            //     new double[] { -89, 69 }, // J2 关节  
+            //     new double[] { -129, 72 }, // J3 关节
+            //     new double[] { -169, 169 }, // J4 关节
+            //     new double[] { -116, 89 }, // J5 关节
+            //     new double[] { -139, 125 }, // J6 关节
+            //     new double[] { -650, 4200 },   // 桁架X轴
+            //     new double[] { -550, 2429 }     // 桁架Y轴
+            // };
             
             private void ProcessPoseMessage(dynamic jsonMessage, string timeStamp)
             {
@@ -1379,26 +1379,26 @@ namespace MagicLittleBox
                         double[] currentAxesSnapshot = new double[8];
                         Array.Copy(axes, currentAxesSnapshot, 8);
                         
-                        List<double> j1List = ComputeSingleJointDisplacement(currentAxesSnapshot[0], _poseJ1, _poseRobotSteps, robotIntervalMs,_axisLimits[0][0],_axisLimits[0][1]);
-                        List<double> j2List = ComputeSingleJointDisplacement(currentAxesSnapshot[1], _poseJ2, _poseRobotSteps, robotIntervalMs,_axisLimits[1][0],_axisLimits[1][1]);
-                        List<double> j3List = ComputeSingleJointDisplacement(currentAxesSnapshot[2], _poseJ3, _poseRobotSteps, robotIntervalMs,_axisLimits[2][0],_axisLimits[2][1]);
-                        List<double> j4List = ComputeSingleJointDisplacement(currentAxesSnapshot[3], _poseJ4, _poseRobotSteps, robotIntervalMs,_axisLimits[3][0],_axisLimits[3][1]);
-                        List<double> j5List = ComputeSingleJointDisplacement(currentAxesSnapshot[4], _poseJ5, _poseRobotSteps, robotIntervalMs,_axisLimits[4][0],_axisLimits[4][1]);
-                        List<double> j6List = ComputeSingleJointDisplacement(currentAxesSnapshot[5], _poseJ6, _poseRobotSteps, robotIntervalMs,_axisLimits[5][0],_axisLimits[5][1]);
+                        List<double> j1List = ComputeSingleJointDisplacement(currentAxesSnapshot[0], _poseJ1, _poseRobotSteps, robotIntervalMs);
+                        List<double> j2List = ComputeSingleJointDisplacement(currentAxesSnapshot[1], _poseJ2, _poseRobotSteps, robotIntervalMs);
+                        List<double> j3List = ComputeSingleJointDisplacement(currentAxesSnapshot[2], _poseJ3, _poseRobotSteps, robotIntervalMs);
+                        List<double> j4List = ComputeSingleJointDisplacement(currentAxesSnapshot[3], _poseJ4, _poseRobotSteps, robotIntervalMs);
+                        List<double> j5List = ComputeSingleJointDisplacement(currentAxesSnapshot[4], _poseJ5, _poseRobotSteps, robotIntervalMs);
+                        List<double> j6List = ComputeSingleJointDisplacement(currentAxesSnapshot[5], _poseJ6, _poseRobotSteps, robotIntervalMs);
 
                         // List<double> txList = ComputeSingleJointDisplacement(currentAxesSnapshot[6], _poseTrussX, _poseTrussSteps, trussIntervalMs);
                         // List<double> tyList = ComputeSingleJointDisplacement(currentAxesSnapshot[7], _poseTrussY, _poseTrussSteps, trussIntervalMs);
 
                         double trussxTarget = currentAxesSnapshot[6] + 1.05 * _poseTrussX;
-                        if (trussxTarget > _axisLimits[6][1])
-                            trussxTarget =  _axisLimits[6][1];
-                        else if (trussxTarget < _axisLimits[6][0])
-                            trussxTarget = _axisLimits[6][0];
+                        // if (trussxTarget > _axisLimits[6][1])
+                        //     trussxTarget =  _axisLimits[6][1];
+                        // else if (trussxTarget < _axisLimits[6][0])
+                        //     trussxTarget = _axisLimits[6][0];
                         double trussyTarget = currentAxesSnapshot[7] + 1.05 * _poseTrussY;
-                        if (trussyTarget > _axisLimits[7][1])
-                            trussyTarget =  _axisLimits[7][1];
-                        else if (trussyTarget < _axisLimits[7][0])
-                            trussyTarget = _axisLimits[7][0];
+                        // if (trussyTarget > _axisLimits[7][1])
+                        //     trussyTarget =  _axisLimits[7][1];
+                        // else if (trussyTarget < _axisLimits[7][0])
+                        //     trussyTarget = _axisLimits[7][0];
                         
                         // 调用egm发送+plc发送（均异步）
                         _poseSendCts?.Cancel();
@@ -1630,8 +1630,7 @@ namespace MagicLittleBox
                 return result;
             }
             
-            private List<double> ComputeSingleJointDisplacement(double currentValue, double velocity, int steps, 
-                int intervalMs,double minLimit, double maxLimit)
+            private List<double> ComputeSingleJointDisplacement(double currentValue, double velocity, int steps, int intervalMs)
             {
                 var result = new List<double>(steps);
                 if (steps <= 0 || intervalMs <= 0)
@@ -1644,10 +1643,10 @@ namespace MagicLittleBox
                 for (int i = 0; i < steps; i++)
                 {
                     value += deltaPerStep;   // 每一步在上一步基础上往前走
-                    if (value > maxLimit)
-                        value = maxLimit;
-                    else if (value < minLimit)
-                        value = minLimit;
+                    // if (value > maxLimit)
+                    //     value = maxLimit;
+                    // else if (value < minLimit)
+                    //     value = minLimit;
                     result.Add(value);       // 记录的是“这一时刻的绝对值”
                 }
 

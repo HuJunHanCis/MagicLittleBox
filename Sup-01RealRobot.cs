@@ -72,7 +72,6 @@ namespace MagicLittleBox
                     ControllerInfo controller =  controllers[index];
                     _arRobotVirtual = new ArRobotHelper(controller);
                     if (!_arRobotVirtual.IsVirtual)
-                    // if (_arRobotVirtual.IsVirtual)
                     {
                         Log.Information("[213]: 真实机器人初始化成功");
                         _arRobotVirtual.MotorsOn();
