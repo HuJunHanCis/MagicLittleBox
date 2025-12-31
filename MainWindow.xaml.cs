@@ -452,6 +452,18 @@ namespace MagicLittleBox
                 
             }
 
+            double[] _homeJoints = new double[6] { -7, -71.4, 69.5, 64, -52.5, -6};
+            double[] _trusshomeJoints = new double[2] { 0, -70};
+
+            private bool similar(double a, double b, double range=0.1)
+            {
+                if (Math.Abs(a - b) <= range)
+                {
+                    return true;
+                }
+
+                return false;
+            }
             private async void F3GoHome(object sender, RoutedEventArgs e)
             {
                 try
@@ -466,7 +478,7 @@ namespace MagicLittleBox
 
                     Log.Information("[F3]: 开始八轴回零");
                     
-                    double[] robotHomeJoints = new double[6] { 0, 0, 0, 0, 0, 0 };
+                    
                     // double trussXHome = 0f;
                     // double trussYHome = 0f;
                     
@@ -477,10 +489,11 @@ namespace MagicLittleBox
                                 if (_egmRunning && _robotEndpoint != null && _currentRobotStatus == 3)
                                 {
                                     Log.Information("[F3]: 机器人开始回零");
-                                    while (_currentEightAxes[0]!=0||_currentEightAxes[1]!=0||_currentEightAxes[2]!=0||
-                                           _currentEightAxes[3]!=0||_currentEightAxes[4]!=0||_currentEightAxes[5]!=0)
+                                    while (!similar(_currentEightAxes[0],_homeJoints[0])||!similar(_currentEightAxes[1],_homeJoints[1])||!similar(_currentEightAxes[2],_homeJoints[2])||
+                                           !similar(_currentEightAxes[3],_homeJoints[3])||!similar(_currentEightAxes[4],_homeJoints[4])||!similar(_currentEightAxes[5],_homeJoints[5]))
                                     {
-                                        await SendJointMessageToRobot(robotHomeJoints);
+                                        await SendJointMessageToRobot(_homeJoints);
+                                        // Console.WriteLine(_currentEightAxes[0]);
                                         Thread.Sleep(50);
                                     }
                                     Log.Information("[F3]: 机器人回零完成");
@@ -508,12 +521,12 @@ namespace MagicLittleBox
                             if (_currentTrussStatus == 3)
                             {
                                 Log.Information("[F3]: 桁架开始回零");
-                                while (_currentEightAxes[6]!=0||_currentEightAxes[7]!=0)
+                                while (_currentEightAxes[6]!=_trusshomeJoints[0]||_currentEightAxes[7]!=_trusshomeJoints[1])
                                 {
                                     await _virtualTruss.PlcGotoPositionQuick(
                                         false,
-                                        (float)0,
-                                        (float)0,
+                                        (float)_trusshomeJoints[0],
+                                        (float)_trusshomeJoints[1],
                                         (float)500,   // 较慢的安全速度
                                         (float)500);
                                     Thread.Sleep(1000);
@@ -1244,18 +1257,37 @@ namespace MagicLittleBox
                     // 2. 获取机器人当前关节
                     if (_currentRobotStatus != 3 || _currentTrussStatus != 3 || !_uesaynocrush)
                     {
-                        // 根据具体状态设置对应的状态文本
-                        string robotStatusText = _currentRobotStatus == -1 ? "Stopped" : "Running";
-                        string trussStatusText = _currentTrussStatus == -1 ? "Stopped" : "Running";
-                        var sendData = new
+                        if (!_uesaynocrush)
                         {
-                            Header = "ERROR",
-                            Timestamp = DateTime.Now.ToString("yyMMddHHmmssfff"),
-                            RobotStatus = robotStatusText,
-                            TrussStatus = trussStatusText
-                        };
-                        string jsonString = JsonConvert.SerializeObject(sendData);
-                        return Encoding.UTF8.GetBytes(jsonString);
+                            // 根据具体状态设置对应的状态文本
+                            string robotStatusText = _currentRobotStatus == -1 ? "Stopped" : "Running";
+                            string trussStatusText = _currentTrussStatus == -1 ? "Stopped" : "Running";
+                            var sendData = new
+                            {
+                                Header = "CRUSH",
+                                Timestamp = DateTime.Now.ToString("yyMMddHHmmssfff"),
+                                RobotStatus = robotStatusText,
+                                TrussStatus = trussStatusText
+                            };
+                            string jsonString = JsonConvert.SerializeObject(sendData);
+                            return Encoding.UTF8.GetBytes(jsonString);
+                        }
+                        else
+                        {
+                            // 根据具体状态设置对应的状态文本
+                            string robotStatusText = _currentRobotStatus == -1 ? "Stopped" : "Running";
+                            string trussStatusText = _currentTrussStatus == -1 ? "Stopped" : "Running";
+                            var sendData = new
+                            {
+                                Header = "ERROR",
+                                Timestamp = DateTime.Now.ToString("yyMMddHHmmssfff"),
+                                RobotStatus = robotStatusText,
+                                TrussStatus = trussStatusText
+                            };
+                            string jsonString = JsonConvert.SerializeObject(sendData);
+                            return Encoding.UTF8.GetBytes(jsonString);
+                        }
+                            
                     }
                     else
                     {
@@ -1356,7 +1388,7 @@ namespace MagicLittleBox
                 try
                 {
                     int robotIntervalMs = 0;
-                    int trussIntervalMs = 0;
+                    int trussIntervalMs;
                     
                     if (_egmRunning && _robotEndpoint != null && _currentRobotStatus ==3 && _currentTrussStatus ==3 && _uesaynocrush)
                     {
@@ -1613,6 +1645,38 @@ namespace MagicLittleBox
                             F4Refresh(this, null);
                         });
                         _uesaynocrush = true;
+                    }
+                    if (jsonMessage.Message.ToString() == "RESTORE")
+                    {
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            F4Refresh(this, null);
+                        });
+            
+                        await Task.Delay(16500);
+                        
+                        _uesaynocrush = true;
+            
+                        // EgmStart 也需要在UI线程执行
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            EgmStart(this, null);
+                        });
+                        await Task.Delay(1000);
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            F3GoHome(this, null);
+                        });
+                        await Task.Delay(1000);
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            EgmStop(this, null);
+                        });
+                        await Task.Delay(1000);
+                        await Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            EgmStart(this, null);
+                        });
                     }
                     if (jsonMessage.Message.ToString() == "RESTART")
                     {
