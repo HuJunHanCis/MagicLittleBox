@@ -193,12 +193,12 @@ namespace MagicLittleBox
                 if (_currentEightAxes == null || _currentEightAxes.Length < 6)
                     return false;
 
-                return Math.Abs(_currentEightAxes[0] - 0) < homeTolerance &&
-                       Math.Abs(_currentEightAxes[1] - 0) < homeTolerance &&
-                       Math.Abs(_currentEightAxes[2] - 0) < homeTolerance &&
-                       Math.Abs(_currentEightAxes[3] - 0) < homeTolerance &&
-                       Math.Abs(_currentEightAxes[4] - 0) < homeTolerance &&
-                       Math.Abs(_currentEightAxes[5] - 0) < homeTolerance;
+                return Math.Abs(_currentEightAxes[0] - _homeJoints[0]) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[1] - _homeJoints[1]) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[2] - _homeJoints[2]) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[3] - _homeJoints[3]) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[4] - _homeJoints[4]) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[5] - _homeJoints[5]) < homeTolerance;
             }
 
             // 5. 检查桁架是否回零
@@ -207,8 +207,32 @@ namespace MagicLittleBox
                 if (_currentEightAxes == null || _currentEightAxes.Length < 8)
                     return false;
 
-                return Math.Abs(_currentEightAxes[6] - 0) < homeTolerance &&
-                       Math.Abs(_currentEightAxes[7] - 0) < homeTolerance;
+                return Math.Abs(_currentEightAxes[6] - _trusshomeJoints[0]) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[7] - _trusshomeJoints[1]) < homeTolerance;
+            }
+            
+            // 6. 检查机器人是否在阶段零位
+            private bool IsRobotAtStage(double homeTolerance=0.1)
+            {
+                if (_currentEightAxes == null || _currentEightAxes.Length < 6)
+                    return false;
+
+                return Math.Abs(_currentEightAxes[0] - _stageJoints[0]) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[1] - _stageJoints[1]) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[2] - _stageJoints[2]) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[3] - _stageJoints[3]) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[4] - _stageJoints[4]) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[5] - _stageJoints[5]) < homeTolerance;
+            }
+
+            // 7. 检查桁架是否在阶段零位
+            private bool IsTrussAtStage(double homeTolerance=0.1)
+            {
+                if (_currentEightAxes == null || _currentEightAxes.Length < 8)
+                    return false;
+
+                return Math.Abs(_currentEightAxes[6] - _trussstageJoints[0]) < homeTolerance &&
+                       Math.Abs(_currentEightAxes[7] - _trussstageJoints[1]) < homeTolerance;
             }
 
         #endregion
@@ -321,8 +345,6 @@ namespace MagicLittleBox
 
                         // 3. 启动数据发送线程
                         StartDataSendThread();
-                    
-                   
 
                         // 4. 打开RL监听
                         if (RlListener.IsChecked != true)
@@ -453,7 +475,10 @@ namespace MagicLittleBox
             }
 
             double[] _homeJoints = new double[6] { -7, -71.4, 69.5, 64, -52.5, -6};
+            double[] _stageJoints = new double[6];
+            
             double[] _trusshomeJoints = new double[2] { 0, -70};
+            double[] _trussstageJoints = new double[2];
 
             private bool similar(double a, double b, double range=0.1)
             {
@@ -521,7 +546,7 @@ namespace MagicLittleBox
                             if (_currentTrussStatus == 3)
                             {
                                 Log.Information("[F3]: 桁架开始回零");
-                                while (_currentEightAxes[6]!=_trusshomeJoints[0]||_currentEightAxes[7]!=_trusshomeJoints[1])
+                                while (!similar(_currentEightAxes[6],_trusshomeJoints[0])||!similar(_currentEightAxes[7],_trusshomeJoints[1]))
                                 {
                                     await _virtualTruss.PlcGotoPositionQuick(
                                         false,
@@ -557,6 +582,115 @@ namespace MagicLittleBox
 
                     // 5. 重新启用RL监听
                     if (IsRobotAtHome() && IsTrussAtHome())
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            RlListener.IsEnabled = true;
+                            // RlListener.IsChecked = true;
+                        });
+                        // _rlListenerEnabled = true;
+                        Log.Information("[F3]: RL监听已重新启用");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[F3]: 八轴回零时发生异常");
+                }
+            }
+            
+            private async void SpecicalRestore(double[] robotTargetJoints,double[] trussTargetJoints)
+            {
+                try
+                {
+                    // 1. 关闭 RL 监听并锁定按钮
+                    Dispatcher.Invoke(() =>
+                    {
+                        RlListener.IsChecked = false;
+                        RlListener.IsEnabled = false;
+                    });
+                    _rlListenerEnabled = false;
+
+                    Log.Information("[F3]: 开始八轴回零");
+                    
+                    
+                    // double trussXHome = 0f;
+                    // double trussYHome = 0f;
+                    
+                    var robotTask = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                if (_egmRunning && _robotEndpoint != null && _currentRobotStatus == 3)
+                                {
+                                    Log.Information("[F3]: 机器人开始回零");
+                                    while (!similar(_currentEightAxes[0],robotTargetJoints[0])||!similar(_currentEightAxes[1],robotTargetJoints[1])||!similar(_currentEightAxes[2],robotTargetJoints[2])||
+                                           !similar(_currentEightAxes[3],robotTargetJoints[3])||!similar(_currentEightAxes[4],robotTargetJoints[4])||!similar(_currentEightAxes[5],robotTargetJoints[5]))
+                                    {
+                                        await SendJointMessageToRobot(robotTargetJoints);
+                                        // Console.WriteLine(_currentEightAxes[0]);
+                                        Thread.Sleep(50);
+                                    }
+                                    Log.Information("[F3]: 机器人回零完成");
+                                }
+                                else
+                                {
+                                    Log.Warning("[F3]: 机器人不在可回零状态，跳过");
+                                }
+                            }
+                            catch (TaskCanceledException)
+                            {
+                                // 正常：新POSE或EgmStop触发取消
+                                // Log.Debug("[POS]: 发送任务被取消");
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error(ex, "[POS]: 机器人回零过程中发生异常");
+                            }
+                        });
+                    
+                    var trussTask = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            if (_currentTrussStatus == 3)
+                            {
+                                Log.Information("[F3]: 桁架开始回零");
+                                while (!similar(_currentEightAxes[6],trussTargetJoints[0])||!similar(_currentEightAxes[7],trussTargetJoints[1]))
+                                {
+                                    await _virtualTruss.PlcGotoPositionQuick(
+                                        false,
+                                        (float)trussTargetJoints[0],
+                                        (float)trussTargetJoints[1],
+                                        (float)700,   // 较慢的安全速度
+                                        (float)700);
+                                    Thread.Sleep(1000);
+                                }
+                                
+                                Log.Information("[F3]: 桁架回零完成");
+                            }
+                            else
+                            {
+                                Log.Warning("[F3]: 桁架不在可回零状态，跳过");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error(ex, "[POS]: 桁架回零过程中发生异常");
+                        }
+                    });
+                    
+                    try
+                    {
+                        await Task.WhenAll(robotTask, trussTask);
+                        Log.Information("[F3]: 回零任务执行完成");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "[F3]: 等待回零任务时发生异常");
+                    }
+
+                    // 5. 重新启用RL监听
+                    if (IsRobotAtStage() && IsTrussAtStage())
                     {
                         Dispatcher.Invoke(() =>
                         {
@@ -791,6 +925,20 @@ namespace MagicLittleBox
                                             RlConnection.Fill =
                                                 (SolidColorBrush)(new BrushConverter().ConvertFrom("#C94F4F"));
                                         });
+                                    }
+                                    
+                                    if (header == "RL" && type == "SAVE")
+                                    {
+                                        _stageJoints[0] = _currentEightAxes[0];
+                                        _stageJoints[1] = _currentEightAxes[1];
+                                        _stageJoints[2] = _currentEightAxes[2];
+                                        _stageJoints[3] = _currentEightAxes[3];
+                                        _stageJoints[4] = _currentEightAxes[4];
+                                        _stageJoints[5] = _currentEightAxes[5];
+                                        _trussstageJoints[0] = _currentEightAxes[6];
+                                        _trussstageJoints[1] = _currentEightAxes[7];
+                                        Log.Information($"[RET]: 阶段目标位已被重置为: J1:{_stageJoints[0]}, J2:{_stageJoints[1]}, J3:{_stageJoints[2]}, " +
+                                                        $"J4:{_stageJoints[3]}, J5:{_stageJoints[4]}, J6:{_stageJoints[5]}, TrussX:{_trussstageJoints[0]}, TrussY:{_trussstageJoints[1]}");
                                     }
 
                                     if (header == "Crush")
@@ -1064,7 +1212,7 @@ namespace MagicLittleBox
             private IPEndPoint _ueEndpoint;
             
             // 启动数据发送线程
-            private void StartDataSendThread()
+            private void StartDataSendThread(bool onlyue = false)
             {
                 // 若已有旧任务在跑，先停掉
                 StopDataSendThread();
@@ -1082,7 +1230,7 @@ namespace MagicLittleBox
                 _dataSendCts = new CancellationTokenSource();
                 var ct = _dataSendCts.Token;
 
-                _dataSendTask = Task.Run(async () => await RunDataSendLoop(ct));
+                _dataSendTask = Task.Run(async () => await RunDataSendLoop(ct, onlyue));
                 Log.Information("[SED]: 数据发送线程已启动");
             }
 
@@ -1180,7 +1328,7 @@ namespace MagicLittleBox
             }
             
             // 数据发送循环
-            private async Task RunDataSendLoop(CancellationToken ct)
+            private async Task RunDataSendLoop(CancellationToken ct,bool onlyue)
             {
                 try
                 {
@@ -1206,7 +1354,7 @@ namespace MagicLittleBox
                             var sendData = CollectDataSend();
                     
                             // 发送到RL
-                            if (_rlUdpClient != null && _rlEndpoint != null && sendData != null && sendData.Length > 0)
+                            if (_rlUdpClient != null && _rlEndpoint != null && sendData != null && sendData.Length > 0 && !onlyue)
                             {
                                 await _rlUdpClient.SendAsync(sendData, sendData.Length, _rlEndpoint);
                             }
@@ -1656,16 +1804,16 @@ namespace MagicLittleBox
                         await Task.Delay(16500);
                         
                         _uesaynocrush = true;
-            
+                        
                         // EgmStart 也需要在UI线程执行
                         await Application.Current.Dispatcher.InvokeAsync(() =>
                         {
-                            EgmStart(this, null);
+                            EgmStartWithOnlyUe(this, null);
                         });
                         await Task.Delay(1000);
                         await Application.Current.Dispatcher.InvokeAsync(() =>
                         {
-                            F3GoHome(this, null);
+                            SpecicalRestore(_stageJoints, _trussstageJoints);
                         });
                         await Task.Delay(1000);
                         await Application.Current.Dispatcher.InvokeAsync(() =>
@@ -1795,6 +1943,108 @@ namespace MagicLittleBox
                 EgmStopButton.IsEnabled = true;
                 
                 IsVirtualBox.IsEnabled = false;
+            }
+
+        #endregion
+
+        #region 屎山代码1
+
+        private void EgmStartWithOnlyUe(object sender, RoutedEventArgs e)
+            {
+                try
+                {
+                    if (_virtualStateEnabled)
+                    {
+                        Log.Information("[VIR]: 使用虚拟仿真控制状态");
+                        if (_egmRunning)
+                        {
+                            Log.Warning("[EGM]: 已经处于运行状态，忽略重复启动");
+                            return;
+                        }
+                    
+                        _virtualRobot.RestartSim();
+                    
+                        Thread.Sleep(200);
+
+                        Log.Information("[EGM]: 开始启动流程");
+
+                        // 1. 确保 UDP 监听已启动（如果端口无效，会在内部弹窗并返回）
+                        UdpListener();
+                        if (_udpListenerClient == null)
+                        {
+                            Log.Error("[EGM]: UDP 监听未成功启动，EGM 启动中止");
+                            return;
+                        }
+                    
+                        // 2. 监听成功后再锁 UI
+                        LockEgmRunningStatus();
+                        _rlListenerEnabled = true;
+
+                        // 3. 启动数据发送线程
+                        StartDataSendThread(true);
+
+                        // 4. 打开RL监听
+                        if (RlListener.IsChecked != true)
+                        {
+                            RlListener.IsChecked = true;
+                        }
+                    
+                        _virtualTruss.EnableBoth();
+
+                        _egmRunning = true;
+
+                        Log.Information("[EGM]: 启动流程完成");
+                    }
+
+                    else
+                    {
+                        Log.Information("[VIR]: 使用真实物理控制状态");
+                        if (_egmRunning)
+                        {
+                            Log.Warning("[EGM]: 已经处于运行状态，忽略重复启动");
+                            return;
+                        }
+                    
+                        _virtualRobot.RestartSim();
+                    
+                        Thread.Sleep(200);
+
+                        Log.Information("[EGM]: 开始启动流程");
+
+                        // 1. 确保 UDP 监听已启动（如果端口无效，会在内部弹窗并返回）
+                        UdpListener();
+                        if (_udpListenerClient == null)
+                        {
+                            Log.Error("[EGM]: UDP 监听未成功启动，EGM 启动中止");
+                            return;
+                        }
+                    
+                        // 2. 监听成功后再锁 UI
+                        LockEgmRunningStatus();
+                        _rlListenerEnabled = true;
+
+                        // 3. 启动数据发送线程
+                        StartDataSendThread();
+                    
+                   
+
+                        // 4. 打开RL监听
+                        if (RlListener.IsChecked != true)
+                        {
+                            RlListener.IsChecked = true;
+                        }
+                    
+                        _virtualTruss.EnableBoth();
+
+                        _egmRunning = true;
+
+                        Log.Information("[EGM]: 启动流程完成");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "[EGM]: 启动失败");
+                }
             }
 
         #endregion
